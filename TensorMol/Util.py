@@ -198,7 +198,7 @@ def EluAjust(x, a, x0, shift):
 		return a*(math.exp(x-x0)-1.0)+shift
 
 def sigmoid_with_param(x, prec=tf.float64):
-	return tf.math.log(1.0+tf.exp(tf.multiply(tf.cast(PARAMS["sigmoid_alpha"], dtype=prec), x)))/tf.cast(PARAMS["sigmoid_alpha"], dtype=prec)
+	return tf.math.log(1.0+tf.math.exp(tf.math.multiply(tf.cast(PARAMS["sigmoid_alpha"], dtype=prec), x)))/tf.cast(PARAMS["sigmoid_alpha"], dtype=prec)
 
 def guassian_act(x, prec=tf.float64):
 	return tf.math.exp(-x*x)
