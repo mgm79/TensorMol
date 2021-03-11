@@ -5187,19 +5187,19 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden1'):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.inshape))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biaseslayer'+str(i))
-							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(inputs, 1 - (keep_prob[i])), weights) + biases))
+							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(inputs, 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Ebranches[-1].append(self.activation_function(tf.matmul(inputs, weights) + biases))
 					else:
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden'+str(i+1)):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[i-1]))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biaseslayer'+str(i))
-							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (keep_prob[i])), weights) + biases))
+							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Ebranches[-1].append(self.activation_function(tf.matmul(Ebranches[-1][-1], weights) + biases))
 				with tf.compat.v1.name_scope(str(self.eles[e])+'_regression_linear'):
 					shp = tf.shape(input=inputs)
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[-1], 1], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[-1]))), var_wd=None)
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
-					Ebranches[-1].append(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (keep_prob[-1])), weights) + biases)
+					Ebranches[-1].append(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (1 - (keep_prob[-1]))), weights) + biases)
 					shp_out = tf.shape(input=Ebranches[-1][-1])
 					cut = tf.slice(Ebranches[-1][-1],[0,0],[shp_out[0],1])
 					rshp = tf.reshape(cut,[1,shp_out[0]])
@@ -5243,7 +5243,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden1_charge'):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.inshape))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
-							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(charge_inputs, 1 - (keep_prob[i])), weights) + biases))
+							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(charge_inputs, 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Dbranches[-1].append(self.activation_function(tf.matmul(charge_inputs, weights) + biases))
 							dipole_wb.append(weights)
 							dipole_wb.append(biases)
@@ -5251,7 +5251,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden'+str(i+1)+"_charge"):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[i-1]))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
-							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (keep_prob[i])), weights) + biases))
+							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Dbranches[-1].append(self.activation_function(tf.matmul(Dbranches[-1][-1], weights) + biases))
 							dipole_wb.append(weights)
 							dipole_wb.append(biases)
@@ -5261,7 +5261,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
 					dipole_wb.append(weights)
 					dipole_wb.append(biases)
-					Dbranches[-1].append(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (keep_prob[-1])), weights) + biases)
+					Dbranches[-1].append(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (1 - (keep_prob[-1]))), weights) + biases)
 					shp_out = tf.shape(input=Dbranches[-1][-1])
 					cut = tf.slice(Dbranches[-1][-1],[0,0],[shp_out[0],1])
 					rshp = tf.reshape(cut,[1,shp_out[0]])
@@ -5797,19 +5797,19 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden1'):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.inshape))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biaseslayer'+str(i))
-							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(inputs, 1 - (keep_prob[i])), weights) + biases))
+							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(inputs, 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Ebranches[-1].append(self.activation_function(tf.matmul(inputs, weights) + biases))
 					else:
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden'+str(i+1)):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[i-1]))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biaseslayer'+str(i))
-							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (keep_prob[i])), weights) + biases))
+							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Ebranches[-1].append(self.activation_function(tf.matmul(Ebranches[-1][-1], weights) + biases))
 				with tf.compat.v1.name_scope(str(self.eles[e])+'_regression_linear'):
 					shp = tf.shape(input=inputs)
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[-1], 1], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[-1]))), var_wd=None)
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
-					Ebranches[-1].append(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (keep_prob[-1])), weights) + biases)
+					Ebranches[-1].append(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (1 - (keep_prob[-1]))), weights) + biases)
 					shp_out = tf.shape(input=Ebranches[-1][-1])
 					cut = tf.slice(Ebranches[-1][-1],[0,0],[shp_out[0],1])
 					rshp = tf.reshape(cut,[1,shp_out[0]])
@@ -5854,7 +5854,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden1_charge'):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.inshape))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
-							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(charge_inputs, 1 - (keep_prob[i])), weights) + biases))
+							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(charge_inputs, 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Dbranches[-1].append(self.activation_function(tf.matmul(charge_inputs, weights) + biases))
 							dipole_wb.append(weights)
 							dipole_wb.append(biases)
@@ -5862,7 +5862,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden'+str(i+1)+"_charge"):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[i-1]))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
-							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (keep_prob[i])), weights) + biases))
+							Dbranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Dbranches[-1].append(self.activation_function(tf.matmul(Dbranches[-1][-1], weights) + biases))
 							dipole_wb.append(weights)
 							dipole_wb.append(biases)
@@ -5872,7 +5872,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout(
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
 					dipole_wb.append(weights)
 					dipole_wb.append(biases)
-					Dbranches[-1].append(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (keep_prob[-1])), weights) + biases)
+					Dbranches[-1].append(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (1 - (keep_prob[-1]))), weights) + biases)
 					shp_out = tf.shape(input=Dbranches[-1][-1])
 					cut = tf.slice(Dbranches[-1][-1],[0,0],[shp_out[0],1])
 					rshp = tf.reshape(cut,[1,shp_out[0]])
@@ -6138,13 +6138,13 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout_
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden1'):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.inshape))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biaseslayer'+str(i))
-							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(inputs, 1 - (keep_prob[i])), weights) + biases))
+							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(inputs, 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Ebranches[-1].append(self.activation_function(tf.matmul(inputs, weights) + biases))
 					else:
 						with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden'+str(i+1)):
 							weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[i-1]))), var_wd=0.001)
 							biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biaseslayer'+str(i))
-							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (keep_prob[i])), weights) + biases))
+							Ebranches[-1].append(self.activation_function(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (1 - (keep_prob[i]))), weights) + biases))
 							#Ebranches[-1].append(self.activation_function(tf.matmul(Ebranches[-1][-1], weights) + biases))
 				with tf.compat.v1.name_scope(str(self.eles[e])+'_prob_sum'):
 					prob = tf.divide(tf.exp(Ebranches[-1][-1]), tf.reshape(tf.reduce_sum(input_tensor=tf.exp(Ebranches[-1][-1]), axis=-1),[-1,1]))
@@ -6628,7 +6628,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout_
 					shp = tf.shape(input=inputs)
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[-1], 1], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[-1]))), var_wd=None)
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
-					Ebranches[-1].append(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (keep_prob)), weights) + biases)
+					Ebranches[-1].append(tf.matmul(tf.nn.dropout(Ebranches[-1][-1], 1 - (1 - (keep_prob))), weights) + biases)
 					shp_out = tf.shape(input=Ebranches[-1][-1])
 					cut = tf.slice(Ebranches[-1][-1],[0,0],[shp_out[0],1])
 					rshp = tf.reshape(cut,[1,shp_out[0]])
@@ -6692,7 +6692,7 @@ class MolInstance_DirectBP_EE_ChargeEncode_Update_vdw_DSF_elu_Normalize_Dropout_
 					charge_shp = tf.shape(input=charge_inputs)
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[-1], 1], var_stddev=1.0/(10+math.sqrt(float(self.HiddenLayers[-1]))), var_wd=None)
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
-					Dbranches[-1].append(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (keep_prob)), weights) + biases)
+					Dbranches[-1].append(tf.matmul(tf.nn.dropout(Dbranches[-1][-1], 1 - (1 - (keep_prob))), weights) + biases)
 					shp_out = tf.shape(input=Dbranches[-1][-1])
 					cut = tf.slice(Dbranches[-1][-1],[0,0],[shp_out[0],1])
 					rshp = tf.reshape(cut,[1,shp_out[0]])
