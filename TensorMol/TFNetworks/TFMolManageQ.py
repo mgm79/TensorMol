@@ -106,7 +106,7 @@ class TFMolQManage(TFMolManage):
 		else:
 			raise Exception("Unknown Network Type!")
 
-		self.BatchQueue = tf.RandomShuffleQueue(capacity, min_after_dequeue, dtypes, shapes=None, names=None, seed=None, shared_name=None, name='random_shuffle_queue')
+		self.BatchQueue = tf.queue.RandomShuffleQueue(capacity, min_after_dequeue, dtypes, shapes=None, names=None, seed=None, shared_name=None, name='random_shuffle_queue')
 
 		return
 

@@ -124,10 +124,10 @@ class BehlerParinelloNetwork(object):
 		return
 
 	def shifted_softplus(self, x):
-		return tf.nn.softplus(x) - tf.cast(tf.log(2.0), self.tf_precision)
+		return tf.nn.softplus(x) - tf.cast(tf.math.log(2.0), self.tf_precision)
 
 	def sigmoid_with_param(self, x):
-		return tf.log(1.0+tf.exp(tf.multiply(tf.cast(PARAMS["sigmoid_alpha"], dtype=self.tf_precision), x)))/tf.cast(PARAMS["sigmoid_alpha"], dtype=self.tf_precision)
+		return tf.math.log(1.0+tf.exp(tf.multiply(tf.cast(PARAMS["sigmoid_alpha"], dtype=self.tf_precision), x)))/tf.cast(PARAMS["sigmoid_alpha"], dtype=self.tf_precision)
 
 	def start_training(self):
 		self.load_data_to_scratch()
@@ -337,15 +337,15 @@ class BehlerParinelloNetwork(object):
 		OPTIONALLY --- Attach a lot of summaries to a Tensor (for TensorBoard visualization).
 		These actually take dozens of seconds to initialize.
 		"""
-		with tf.name_scope('summaries'):
-			mean = tf.reduce_mean(var)
-			tf.summary.scalar('mean', mean)
-		with tf.name_scope('stddev'):
-			stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-			tf.summary.scalar('stddev', stddev)
-			tf.summary.scalar('max', tf.reduce_max(var))
-			tf.summary.scalar('min', tf.reduce_min(var))
-			tf.summary.histogram('histogram', var)
+		with tf.compat.v1.name_scope('summaries'):
+			mean = tf.reduce_mean(input_tensor=var)
+			tf.compat.v1.summary.scalar('mean', mean)
+		with tf.compat.v1.name_scope('stddev'):
+			stddev = tf.sqrt(tf.reduce_mean(input_tensor=tf.square(var - mean)))
+			tf.compat.v1.summary.scalar('stddev', stddev)
+			tf.compat.v1.summary.scalar('max', tf.reduce_max(input_tensor=var))
+			tf.compat.v1.summary.scalar('min', tf.reduce_min(input_tensor=var))
+			tf.compat.v1.summary.histogram('histogram', var)
 
 	def variable_with_weight_decay(self, shape, stddev, weight_decay, name = None):
 		"""
@@ -365,10 +365,10 @@ class BehlerParinelloNetwork(object):
 			Note that the Variable is initialized with a truncated normal distribution.
 			A weight decay is added only if one is specified.
 		"""
-		variable = tf.Variable(tf.truncated_normal(shape, stddev = stddev, dtype = self.tf_precision), name = name)
+		variable = tf.Variable(tf.random.truncated_normal(shape, stddev = stddev, dtype = self.tf_precision), name = name)
 		if weight_decay is not None:
 			weightdecay = tf.multiply(tf.nn.l2_loss(variable), weight_decay, name='weight_loss')
-			tf.add_to_collection('losses', weightdecay)
+			tf.compat.v1.add_to_collection('losses', weightdecay)
 		return variable
 
 	def fill_dipole_feed_dict(self, batch_data):
@@ -412,14 +412,14 @@ class BehlerParinelloNetwork(object):
 		branches=[]
 		variables=[]
 		output = tf.zeros([self.batch_size, self.max_num_atoms], dtype=self.tf_precision)
-		with tf.name_scope("energy_network"):
+		with tf.compat.v1.name_scope("energy_network"):
 			for e in range(len(self.elements)):
 				branches.append([])
 				inputs = inp[e]
 				index = indexs[e]
 				for i in range(len(self.hidden_layers)):
 					if i == 0:
-						with tf.name_scope(str(self.elements[e])+'_hidden1'):
+						with tf.compat.v1.name_scope(str(self.elements[e])+'_hidden1'):
 							weights = self.variable_with_weight_decay(shape=[self.embedding_shape, self.hidden_layers[i]],
 									stddev=math.sqrt(2.0 / float(self.embedding_shape)), weight_decay=self.weight_decay, name="weights")
 							biases = tf.Variable(tf.zeros([self.hidden_layers[i]], dtype=self.tf_precision), name='biases')
@@ -427,14 +427,14 @@ class BehlerParinelloNetwork(object):
 							variables.append(weights)
 							variables.append(biases)
 					else:
-						with tf.name_scope(str(self.elements[e])+'_hidden'+str(i+1)):
+						with tf.compat.v1.name_scope(str(self.elements[e])+'_hidden'+str(i+1)):
 							weights = self.variable_with_weight_decay(shape=[self.hidden_layers[i-1], self.hidden_layers[i]],
 									stddev=math.sqrt(2.0 / float(self.hidden_layers[i-1])), weight_decay=self.weight_decay, name="weights")
 							biases = tf.Variable(tf.zeros([self.hidden_layers[i]], dtype=self.tf_precision), name='biases')
 							branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
 							variables.append(weights)
 							variables.append(biases)
-				with tf.name_scope(str(self.elements[e])+'_regression_linear'):
+				with tf.compat.v1.name_scope(str(self.elements[e])+'_regression_linear'):
 					weights = self.variable_with_weight_decay(shape=[self.hidden_layers[-1], 1],
 							stddev=math.sqrt(2.0 / float(self.hidden_layers[-1])), weight_decay=self.weight_decay, name="weights")
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_precision), name='biases')
@@ -442,8 +442,8 @@ class BehlerParinelloNetwork(object):
 					variables.append(weights)
 					variables.append(biases)
 					output += tf.scatter_nd(index, branches[-1][-1], [self.batch_size, self.max_num_atoms])
-				tf.verify_tensor_all_finite(output,"Nan in output!!!")
-		return tf.reshape(tf.reduce_sum(output, axis=1), [self.batch_size]), variables
+				tf.compat.v1.verify_tensor_all_finite(output,"Nan in output!!!")
+		return tf.reshape(tf.reduce_sum(input_tensor=output, axis=1), [self.batch_size]), variables
 
 	def dipole_inference(self, inp, indexs, xyzs, natom):
 		"""
@@ -460,14 +460,14 @@ class BehlerParinelloNetwork(object):
 		variables=[]
 		atom_outputs_charge = []
 		output = tf.zeros([self.batch_size, self.max_num_atoms], dtype=self.tf_precision)
-		with tf.name_scope("dipole_network"):
+		with tf.compat.v1.name_scope("dipole_network"):
 			for e in range(len(self.elements)):
 				branches.append([])
 				inputs = inp[e]
 				index = indexs[e]
 				for i in range(len(self.hidden_layers)):
 					if i == 0:
-						with tf.name_scope(str(self.elements[e])+'_hidden1'):
+						with tf.compat.v1.name_scope(str(self.elements[e])+'_hidden1'):
 							weights = self.variable_with_weight_decay(shape=[self.embedding_shape, self.hidden_layers[i]],
 									stddev=math.sqrt(2.0 / float(self.embedding_shape)), weight_decay=self.weight_decay, name="weights")
 							biases = tf.Variable(tf.zeros([self.hidden_layers[i]], dtype=self.tf_precision), name='biases')
@@ -475,14 +475,14 @@ class BehlerParinelloNetwork(object):
 							variables.append(weights)
 							variables.append(biases)
 					else:
-						with tf.name_scope(str(self.elements[e])+'_hidden'+str(i+1)):
+						with tf.compat.v1.name_scope(str(self.elements[e])+'_hidden'+str(i+1)):
 							weights = self.variable_with_weight_decay(shape=[self.hidden_layers[i-1], self.hidden_layers[i]],
 									stddev=math.sqrt(2.0 / float(self.hidden_layers[i-1])), weight_decay=self.weight_decay, name="weights")
 							biases = tf.Variable(tf.zeros([self.hidden_layers[i]], dtype=self.tf_precision), name='biases')
 							branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
 							variables.append(weights)
 							variables.append(biases)
-				with tf.name_scope(str(self.elements[e])+'_regression_linear'):
+				with tf.compat.v1.name_scope(str(self.elements[e])+'_regression_linear'):
 					weights = self.variable_with_weight_decay(shape=[self.hidden_layers[-1], 1],
 							stddev=math.sqrt(2.0 / float(self.hidden_layers[-1])), weight_decay=self.weight_decay, name="weights")
 					biases = tf.Variable(tf.zeros([1], dtype=self.tf_precision), name='biases')
@@ -491,16 +491,16 @@ class BehlerParinelloNetwork(object):
 					variables.append(biases)
 					output += tf.scatter_nd(index, branches[-1][-1], [self.batch_size, self.max_num_atoms])
 
-			tf.verify_tensor_all_finite(output,"Nan in output!!!")
-			net_charge = tf.reduce_sum(output, axis=1)
+			tf.compat.v1.verify_tensor_all_finite(output,"Nan in output!!!")
+			net_charge = tf.reduce_sum(input_tensor=output, axis=1)
 			delta_charge = net_charge / tf.cast(natom, self.tf_precision)
 			charges = output - tf.expand_dims(delta_charge, axis=1)
-			dipole = tf.reduce_sum(xyzs * tf.expand_dims(charges, axis=-1), axis=1)
+			dipole = tf.reduce_sum(input_tensor=xyzs * tf.expand_dims(charges, axis=-1), axis=1)
 			if (PARAMS["train_quadrupole"]):
 				quadrupole_coords = 3 * tf.stack([tf.stack([tf.square(xyzs[...,0]), xyzs[...,0] * xyzs[...,1], tf.square(xyzs[...,1])], axis=-1),
 									tf.stack([xyzs[...,0] * xyzs[...,2], xyzs[...,1] * xyzs[...,2], tf.square(xyzs[...,2])], axis=-1)], axis=-2)
-				quadrupole_coords -= tf.expand_dims(tf.reduce_sum(tf.square(xyzs), axis=-1, keepdims=True), axis=-1)
-				quadrupole = tf.reduce_sum(quadrupole_coords * tf.expand_dims(tf.expand_dims(charges, axis=-1), axis=-1), axis=1)
+				quadrupole_coords -= tf.expand_dims(tf.reduce_sum(input_tensor=tf.square(xyzs), axis=-1, keepdims=True), axis=-1)
+				quadrupole = tf.reduce_sum(input_tensor=quadrupole_coords * tf.expand_dims(tf.expand_dims(charges, axis=-1), axis=-1), axis=1)
 		return dipole, quadrupole, charges, net_charge, variables
 
 	def optimizer(self, loss, learning_rate, momentum, variables):
@@ -518,7 +518,7 @@ class BehlerParinelloNetwork(object):
 		Returns:
 			train_op: the tensorflow operation to call for training.
 		"""
-		optimizer = tf.train.AdamOptimizer(learning_rate)
+		optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate)
 		global_step = tf.Variable(0, name='global_step', trainable=False)
 		train_op = optimizer.minimize(loss, global_step=global_step, var_list=variables)
 		return train_op
@@ -778,16 +778,16 @@ class BehlerParinelloSymFunc(BehlerParinelloNetwork):
 		angular_cutoff = tf.constant(self.angular_cutoff, dtype = self.tf_precision)
 		zeta = tf.constant(self.zeta, dtype = self.tf_precision)
 		eta = tf.constant(self.eta, dtype = self.tf_precision)
-		xyzs_pl = tf.placeholder(self.tf_precision, shape=tuple([self.batch_size, self.max_num_atoms, 3]))
-		Zs_pl = tf.placeholder(tf.int32, shape=tuple([self.batch_size, self.max_num_atoms]))
+		xyzs_pl = tf.compat.v1.placeholder(self.tf_precision, shape=tuple([self.batch_size, self.max_num_atoms, 3]))
+		Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=tuple([self.batch_size, self.max_num_atoms]))
 		embeddings, molecule_indices = tf_symmetry_functions(xyzs_pl, Zs_pl, elements, element_pairs, radial_cutoff,
 										angular_cutoff, radial_rs, angular_rs, theta_s, zeta, eta)
 		embeddings_list = [[], [], [], []]
 		labels_list = []
 
 		self.embeddings_max = []
-		sess = tf.Session()
-		sess.run(tf.global_variables_initializer())
+		sess = tf.compat.v1.Session()
+		sess.run(tf.compat.v1.global_variables_initializer())
 		for ministep in range (0, max(2, int(0.1 * self.num_train_cases/self.batch_size))):
 			batch_data = self.get_energy_train_batch(self.batch_size)
 			labels_list.append(batch_data[2])
@@ -816,14 +816,14 @@ class BehlerParinelloSymFunc(BehlerParinelloNetwork):
 			continue_training: should read the graph variables from a saved checkpoint.
 		"""
 		with tf.Graph().as_default():
-			self.xyzs_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
-			self.Zs_pl = tf.placeholder(tf.int32, shape=[self.batch_size, self.max_num_atoms])
-			self.energy_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size])
-			self.dipole_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, 3])
-			self.quadrupole_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, 2, 3])
-			self.gradients_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
-			self.num_atoms_pl = tf.placeholder(tf.int32, shape=[self.batch_size])
-			self.Reep_pl = tf.placeholder(tf.int32, shape=[None, 3])
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size, self.max_num_atoms])
+			self.energy_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size])
+			self.dipole_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, 3])
+			self.quadrupole_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, 2, 3])
+			self.gradients_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
+			self.num_atoms_pl = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size])
+			self.Reep_pl = tf.compat.v1.placeholder(tf.int32, shape=[None, 3])
 
 			self.dipole_labels = self.dipole_pl
 			self.quadrupole_labels = self.quadrupole_pl
@@ -844,7 +844,7 @@ class BehlerParinelloSymFunc(BehlerParinelloNetwork):
 			embeddings_max = tf.constant(self.embeddings_max, dtype = self.tf_precision)
 			labels_mean = tf.constant(self.labels_mean, dtype = self.tf_precision)
 			labels_stddev = tf.constant(self.labels_stddev, dtype = self.tf_precision)
-			num_atoms_batch = tf.reduce_sum(self.num_atoms_pl)
+			num_atoms_batch = tf.reduce_sum(input_tensor=self.num_atoms_pl)
 
 			embeddings, mol_idx = tf_symmetry_functions(self.xyzs_pl, self.Zs_pl, elements,
 					element_pairs, radial_cutoff, angular_cutoff, radial_rs, angular_rs, theta_s, zeta, eta)
@@ -862,37 +862,37 @@ class BehlerParinelloSymFunc(BehlerParinelloNetwork):
 				self.total_energy = self.bp_energy + self.coulomb_energy
 				self.dipole_loss = self.loss_op(self.dipoles - self.dipole_pl)
 				self.quadrupole_loss = self.loss_op(self.quadrupoles - self.quadrupole_pl)
-				tf.add_to_collection('dipole_losses', self.dipole_loss)
-				tf.add_to_collection('quadrupole_losses', self.quadrupole_loss)
-				self.dipole_losses = tf.add_n(tf.get_collection('dipole_losses'))
-				tf.summary.scalar("dipole losses", self.dipole_losses)
+				tf.compat.v1.add_to_collection('dipole_losses', self.dipole_loss)
+				tf.compat.v1.add_to_collection('quadrupole_losses', self.quadrupole_loss)
+				self.dipole_losses = tf.add_n(tf.compat.v1.get_collection('dipole_losses'))
+				tf.compat.v1.summary.scalar("dipole losses", self.dipole_losses)
 				self.dipole_train_op = self.optimizer(self.dipole_losses, self.learning_rate, self.momentum, dipole_variables)
 			else:
 				self.total_energy = self.bp_energy
 
-			self.gradients = tf.gather_nd(tf.gradients(self.bp_energy, self.xyzs_pl)[0], tf.where(tf.not_equal(self.Zs_pl, 0)))
-			self.gradient_labels = tf.gather_nd(self.gradients_pl, tf.where(tf.not_equal(self.Zs_pl, 0)))
+			self.gradients = tf.gather_nd(tf.gradients(ys=self.bp_energy, xs=self.xyzs_pl)[0], tf.compat.v1.where(tf.not_equal(self.Zs_pl, 0)))
+			self.gradient_labels = tf.gather_nd(self.gradients_pl, tf.compat.v1.where(tf.not_equal(self.Zs_pl, 0)))
 			self.energy_loss = self.loss_op(self.total_energy - self.energy_pl)
-			tf.summary.scalar("energy loss", self.energy_loss)
-			tf.add_to_collection('energy_losses', self.energy_loss)
-			self.gradient_loss = self.loss_op(self.gradients - self.gradient_labels) / tf.cast(tf.reduce_sum(self.num_atoms_pl), self.tf_precision)
+			tf.compat.v1.summary.scalar("energy loss", self.energy_loss)
+			tf.compat.v1.add_to_collection('energy_losses', self.energy_loss)
+			self.gradient_loss = self.loss_op(self.gradients - self.gradient_labels) / tf.cast(tf.reduce_sum(input_tensor=self.num_atoms_pl), self.tf_precision)
 			if self.train_gradients:
-				tf.add_to_collection('energy_losses', self.gradient_loss)
-				tf.summary.scalar("gradient loss", self.gradient_loss)
+				tf.compat.v1.add_to_collection('energy_losses', self.gradient_loss)
+				tf.compat.v1.summary.scalar("gradient loss", self.gradient_loss)
 
-			self.energy_losses = tf.add_n(tf.get_collection('energy_losses'))
-			tf.summary.scalar("energy losses", self.energy_losses)
+			self.energy_losses = tf.add_n(tf.compat.v1.get_collection('energy_losses'))
+			tf.compat.v1.summary.scalar("energy losses", self.energy_losses)
 
 			self.energy_train_op = self.optimizer(self.energy_losses, self.learning_rate, self.momentum, energy_variables)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.summary_writer = tf.summary.FileWriter(self.network_directory, self.sess.graph)
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.network_directory, self.sess.graph)
 			self.sess.run(init)
 			if self.profiling:
-				self.options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-				self.run_metadata = tf.RunMetadata()
+				self.options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
+				self.run_metadata = tf.compat.v1.RunMetadata()
 		return
 
 	def print_epoch(self, step, duration, loss, energy_loss, gradient_loss, num_mols, testing=False):
@@ -914,8 +914,8 @@ class BehlerParinelloSymFunc(BehlerParinelloNetwork):
 		"""
 		with tf.Graph().as_default():
 			#Define the placeholders to be fed in for each batch
-			self.xyzs_pl = tf.placeholder(self.tf_precision, shape=tuple([self.batch_size, self.max_num_atoms, 3]))
-			self.Zs_pl = tf.placeholder(tf.int32, shape=tuple([self.batch_size, self.max_num_atoms]))
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_precision, shape=tuple([self.batch_size, self.max_num_atoms, 3]))
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=tuple([self.batch_size, self.max_num_atoms]))
 
 			#Define the constants/Variables for the symmetry function basis
 			elements = tf.constant(self.elements, dtype = tf.int32)
@@ -940,13 +940,13 @@ class BehlerParinelloSymFunc(BehlerParinelloNetwork):
 				element_embeddings[element] /= embeddings_max[element]
 			self.normalized_output = self.inference(element_embeddings, mol_indices)
 			self.bp_energy = (self.normalized_output * self.labels_stddev) + self.labels_mean
-			self.gradients = tf.gradients(self.bp_energy, self.xyzs_pl)[0]
+			self.gradients = tf.gradients(ys=self.bp_energy, xs=self.xyzs_pl)[0]
 
-			self.summary_op = tf.summary.merge_all()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			self.saver.restore(self.sess, tf.train.latest_checkpoint(self.network_directory))
-			self.summary_writer = tf.summary.FileWriter(self.network_directory, self.sess.graph)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.network_directory, self.sess.graph)
 		return
 
 	def evaluate_fill_feed_dict(self, xyzs, Zs):
@@ -1049,15 +1049,15 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 		return
 
 	def compute_normalization(self):
-		xyzs_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
-		Zs_pl = tf.placeholder(tf.int32, shape=[self.batch_size, self.max_num_atoms])
-		num_atoms_pl = tf.placeholder(tf.int32, shape=[self.batch_size])
+		xyzs_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
+		Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size, self.max_num_atoms])
+		num_atoms_pl = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size])
 		gaussian_params = tf.Variable(self.gaussian_params, trainable=False, dtype=self.tf_precision)
 		elements = tf.constant(self.elements, dtype = tf.int32)
 
-		rotation_params = tf.stack([np.pi * tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
-				np.pi * tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
-				tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision)], axis=-1, name="rotation_params")
+		rotation_params = tf.stack([np.pi * tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
+				np.pi * tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
+				tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision)], axis=-1, name="rotation_params")
 		rotated_xyzs = tf_random_rotate(xyzs_pl, rotation_params)
 		embeddings, molecule_indices = tf_gauss_harmonics_echannel(rotated_xyzs, Zs_pl, elements, gaussian_params, self.l_max)
 
@@ -1068,8 +1068,8 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 		self.embeddings_mean = []
 		self.embeddings_stddev = []
 
-		sess = tf.Session()
-		sess.run(tf.global_variables_initializer())
+		sess = tf.compat.v1.Session()
+		sess.run(tf.compat.v1.global_variables_initializer())
 		for ministep in range (0, max(2, int(0.1 * self.num_train_cases/self.batch_size))):
 			batch_data = self.get_energy_train_batch(self.batch_size)
 			labels_list.append(batch_data[2])
@@ -1102,14 +1102,14 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 			continue_training: should read the graph variables from a saved checkpoint.
 		"""
 		with tf.Graph().as_default():
-			self.xyzs_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
-			self.Zs_pl = tf.placeholder(tf.int32, shape=[self.batch_size, self.max_num_atoms])
-			self.energy_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size])
-			self.dipole_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, 3])
-			self.quadrupole_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, 3])
-			self.gradients_pl = tf.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
-			self.num_atoms_pl = tf.placeholder(tf.int32, shape=[self.batch_size])
-			self.Reep_pl = tf.placeholder(tf.int32, shape=[None, 3])
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size, self.max_num_atoms])
+			self.energy_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size])
+			self.dipole_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, 3])
+			self.quadrupole_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, 3])
+			self.gradients_pl = tf.compat.v1.placeholder(self.tf_precision, shape=[self.batch_size, self.max_num_atoms, 3])
+			self.num_atoms_pl = tf.compat.v1.placeholder(tf.int32, shape=[self.batch_size])
+			self.Reep_pl = tf.compat.v1.placeholder(tf.int32, shape=[None, 3])
 
 			self.gaussian_params = tf.Variable(self.gaussian_params, trainable=True, dtype=self.tf_precision)
 			elements = tf.Variable(self.elements, trainable=False, dtype = tf.int32)
@@ -1121,9 +1121,9 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 			dsf_alpha = tf.Variable(self.dsf_alpha, trainable=False, dtype = self.tf_precision)
 			coulomb_cutoff = tf.Variable(self.coulomb_cutoff, trainable=False, dtype = self.tf_precision)
 
-			rotation_params = tf.stack([np.pi * tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
-					np.pi * tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
-					tf.random_uniform([self.batch_size], minval=0.1, maxval=1.9, dtype=self.tf_precision)], axis=-1)
+			rotation_params = tf.stack([np.pi * tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
+					np.pi * tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_precision),
+					tf.random.uniform([self.batch_size], minval=0.1, maxval=1.9, dtype=self.tf_precision)], axis=-1)
 			rotated_xyzs, rotated_gradients = tf_random_rotate(self.xyzs_pl, rotation_params, self.gradients_pl)
 			self.dipole_labels = tf.squeeze(tf_random_rotate(tf.expand_dims(self.dipole_pl, axis=1), rotation_params))
 			embeddings, molecule_indices = tf_gauss_harmonics_echannel(rotated_xyzs, self.Zs_pl,
@@ -1141,28 +1141,28 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 					self.coulomb_energy = PolynomialRangeSepCoulomb(rotated_xyzs, self.charges, self.Reep_pl, 5.0, 12.0, 5.0)
 				self.total_energy = self.bp_energy + self.coulomb_energy
 				self.dipole_loss = self.loss_op(self.dipoles - self.dipole_labels)
-				tf.add_to_collection('dipole_losses', self.dipole_loss)
-				self.dipole_losses = tf.add_n(tf.get_collection('dipole_losses'))
-				tf.summary.scalar("dipole losses", self.dipole_losses)
+				tf.compat.v1.add_to_collection('dipole_losses', self.dipole_loss)
+				self.dipole_losses = tf.add_n(tf.compat.v1.get_collection('dipole_losses'))
+				tf.compat.v1.summary.scalar("dipole losses", self.dipole_losses)
 				self.dipole_train_op = self.optimizer(self.dipole_losses, self.learning_rate, self.momentum, dipole_variables)
 			else:
 				self.total_energy = self.bp_energy
 
-			xyz_grad, rot_grad = tf.gradients(self.total_energy, [rotated_xyzs, rotation_params])
-			self.gradients = tf.gather_nd(xyz_grad, tf.where(tf.not_equal(self.Zs_pl, 0)))
-			self.gradient_labels = tf.gather_nd(rotated_gradients, tf.where(tf.not_equal(self.Zs_pl, 0)))
+			xyz_grad, rot_grad = tf.gradients(ys=self.total_energy, xs=[rotated_xyzs, rotation_params])
+			self.gradients = tf.gather_nd(xyz_grad, tf.compat.v1.where(tf.not_equal(self.Zs_pl, 0)))
+			self.gradient_labels = tf.gather_nd(rotated_gradients, tf.compat.v1.where(tf.not_equal(self.Zs_pl, 0)))
 
 			self.energy_loss = self.loss_op(self.total_energy - self.energy_pl)
-			tf.summary.scalar("energy loss", self.energy_loss)
-			tf.add_to_collection('energy_losses', self.energy_loss)
-			self.gradient_loss = self.loss_op(self.gradients - self.gradient_labels) / tf.cast(tf.reduce_sum(self.num_atoms_pl), self.tf_precision)
+			tf.compat.v1.summary.scalar("energy loss", self.energy_loss)
+			tf.compat.v1.add_to_collection('energy_losses', self.energy_loss)
+			self.gradient_loss = self.loss_op(self.gradients - self.gradient_labels) / tf.cast(tf.reduce_sum(input_tensor=self.num_atoms_pl), self.tf_precision)
 			self.rotation_loss = self.loss_op(rot_grad) / 500.0
 			if self.train_gradients:
-				tf.add_to_collection('energy_losses', self.gradient_loss)
-				tf.summary.scalar("gradient loss", self.gradient_loss)
+				tf.compat.v1.add_to_collection('energy_losses', self.gradient_loss)
+				tf.compat.v1.summary.scalar("gradient loss", self.gradient_loss)
 			if self.train_rotation:
-				tf.add_to_collection('energy_losses', self.rotation_loss)
-				tf.summary.scalar("rotational loss", self.rotation_loss)
+				tf.compat.v1.add_to_collection('energy_losses', self.rotation_loss)
+				tf.compat.v1.summary.scalar("rotational loss", self.rotation_loss)
 
 			# barrier_function = 1.e5 * tf.concat([tf.pow((0.15 - self.gaussian_params), 3.0), tf.expand_dims(tf.pow((self.gaussian_params[:,0] - 6.1), 3.0), axis=-1),
 			# 			tf.expand_dims(tf.pow((self.gaussian_params[:,1] - 3.6), 3.0), axis=-1)], axis=1)
@@ -1172,22 +1172,22 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 			# tf.add_to_collection('dipole_losses', truncated_barrier_function)
 			# tf.add_to_collection('dipole_losses', gaussian_overlap_loss)
 
-			self.energy_losses = tf.add_n(tf.get_collection('energy_losses'))
-			tf.summary.scalar("energy losses", self.energy_losses)
+			self.energy_losses = tf.add_n(tf.compat.v1.get_collection('energy_losses'))
+			tf.compat.v1.summary.scalar("energy losses", self.energy_losses)
 
 			self.energy_train_op = self.optimizer(self.energy_losses, self.learning_rate, self.momentum, energy_variables)
-			self.summary_op = tf.summary.merge_all()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.summary_writer = tf.summary.FileWriter(self.network_directory, self.sess.graph)
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.network_directory, self.sess.graph)
 			if restart:
 				self.saver.restore(self.sess, tf.train.latest_checkpoint(self.network_directory))
 			else:
-				init = tf.global_variables_initializer()
+				init = tf.compat.v1.global_variables_initializer()
 				self.sess.run(init)
 			if self.profiling:
-				self.options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-				self.run_metadata = tf.RunMetadata()
+				self.options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
+				self.run_metadata = tf.compat.v1.RunMetadata()
 		return
 
 	def print_epoch(self, step, duration, loss, energy_loss, gradient_loss, rotation_loss, num_mols, testing=False):
@@ -1208,10 +1208,10 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 			continue_training: should read the graph variables from a saved checkpoint.
 		"""
 		with tf.Graph().as_default():
-			self.xyzs_pl = tf.placeholder(self.tf_precision, shape=tuple([None, self.max_num_atoms, 3]))
-			self.Zs_pl = tf.placeholder(tf.int32, shape=tuple([None, self.max_num_atoms]))
-			self.num_atoms_pl = tf.placeholder(tf.int32, shape=[None])
-			self.Reep_pl = tf.placeholder(tf.int32, shape=[None,3])
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_precision, shape=tuple([None, self.max_num_atoms, 3]))
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=tuple([None, self.max_num_atoms]))
+			self.num_atoms_pl = tf.compat.v1.placeholder(tf.int32, shape=[None])
+			self.Reep_pl = tf.compat.v1.placeholder(tf.int32, shape=[None,3])
 
 			self.gaussian_params = tf.Variable(self.gaussian_params, trainable=False, dtype=self.tf_precision)
 			elements = tf.Variable(self.elements, trainable=False, dtype = tf.int32)
@@ -1254,10 +1254,10 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 			norm_bp_energy, energy_variables = self.energy_inference(embeddings, molecule_indices)
 			self.bp_energy = (norm_bp_energy * labels_stddev) + labels_mean
 			self.total_energy = self.bp_energy + self.coulomb_energy
-			self.gradients = tf.gradients(self.total_energy, self.xyzs_pl)[0]
+			self.gradients = tf.gradients(ys=self.total_energy, xs=self.xyzs_pl)[0]
 
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver()
 			self.saver.restore(self.sess, tf.train.latest_checkpoint(self.network_directory))
 		return
 
@@ -1294,7 +1294,7 @@ class BehlerParinelloGauSH(BehlerParinelloNetwork):
 		if mol.NAtoms() > self.max_num_atoms:
 			print("Atoms and max atoms", mol.NAtoms(), self.max_num_atoms)
 			self.sess.close()
-			tf.reset_default_graph()
+			tf.compat.v1.reset_default_graph()
 			self.max_num_atoms = mol.NAtoms()
 			self.evaluate_prepare()
 		xyzs_feed = np.zeros((1,self.max_num_atoms, 3))

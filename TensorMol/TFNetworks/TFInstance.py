@@ -159,15 +159,15 @@ class Instance:
 		with tf.Graph().as_default():
 			self.embeds_placeholder, self.labels_placeholder = self.placeholder_inputs(Ncase)
 			self.output = self.inference(self.embeds_placeholder)
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			metafiles = [x for x in os.listdir(self.train_dir) if (x.count('meta')>0)]
 			if (len(metafiles)>0):
 				most_recent_meta_file=metafiles[0]
 				LOGGER.debug("Restoring training from Meta file: "+most_recent_meta_file)
-				config = tf.ConfigProto(allow_soft_placement=True)
-				self.sess = tf.Session(config=config)
-				self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+				config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+				self.sess = tf.compat.v1.Session(config=config)
+				self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 				self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 		self.PreparedFor = Ncase
 		return
@@ -179,10 +179,10 @@ class Instance:
 			self.output = self.inference(self.embeds_placeholder)
 			self.total_loss, self.loss = self.loss_op(self.output, self.labels_placeholder)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.sess.run(init)
 			try:
 				metafiles = [x for x in os.listdir(self.train_dir) if (x.count('meta')>0)]
@@ -190,14 +190,14 @@ class Instance:
 					most_recent_meta_file=metafiles[0]
 					LOGGER.info("Restoring training from Metafile: "+most_recent_meta_file)
 					#Set config to allow soft device placement for temporary fix to known issue with Tensorflow up to version 0.12 atleast - JEH
-					config = tf.ConfigProto(allow_soft_placement=True)
-					self.sess = tf.Session(config=config)
-					self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+					config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+					self.sess = tf.compat.v1.Session(config=config)
+					self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 					self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 			except Exception as Ex:
 				LOGGER.error("Restore Failed")
 				pass
-			self.summary_writer =  tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer =  tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			return
 
 	def Clean(self):
@@ -233,15 +233,15 @@ class Instance:
 
 	def variable_summaries(self, var):
 		"""Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-		with tf.name_scope('summaries'):
-			mean = tf.reduce_mean(var)
-			tf.summary.scalar('mean', mean)
-		with tf.name_scope('stddev'):
-			stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-			tf.summary.scalar('stddev', stddev)
-			tf.summary.scalar('max', tf.reduce_max(var))
-			tf.summary.scalar('min', tf.reduce_min(var))
-			tf.summary.histogram('histogram', var)
+		with tf.compat.v1.name_scope('summaries'):
+			mean = tf.reduce_mean(input_tensor=var)
+			tf.compat.v1.summary.scalar('mean', mean)
+		with tf.compat.v1.name_scope('stddev'):
+			stddev = tf.sqrt(tf.reduce_mean(input_tensor=tf.square(var - mean)))
+			tf.compat.v1.summary.scalar('stddev', stddev)
+			tf.compat.v1.summary.scalar('max', tf.reduce_max(input_tensor=var))
+			tf.compat.v1.summary.scalar('min', tf.reduce_min(input_tensor=var))
+			tf.compat.v1.summary.histogram('histogram', var)
 
 	def save_chk(self,  step):  # this can be included in the Instance
 		checkpoint_file_mini = os.path.join(self.train_dir,self.name+'-chk-'+str(step))
@@ -290,18 +290,18 @@ class Instance:
 		Returns:
 		Variable Tensor
 		"""
-		var = tf.Variable(tf.truncated_normal(var_shape, stddev=var_stddev, dtype=self.tf_prec), name=var_name)
+		var = tf.Variable(tf.random.truncated_normal(var_shape, stddev=var_stddev, dtype=self.tf_prec), name=var_name)
 		if var_wd is not None:
 			weight_decay = tf.multiply(tf.nn.l2_loss(var), var_wd, name='weight_loss')
-			tf.add_to_collection('losses', weight_decay)
+			tf.compat.v1.add_to_collection('losses', weight_decay)
 		return var
 
 
 	def _get_weight_variable(self, name, shape):
-		return tf.get_variable(name, shape, self.tf_prec, tf.truncated_normal_initializer(stddev=0.01))
+		return tf.compat.v1.get_variable(name, shape, self.tf_prec, tf.compat.v1.truncated_normal_initializer(stddev=0.01))
 
 	def _get_bias_variable(self, name, shape):
-		return tf.get_variable(name, shape, self.tf_prec, tf.constant_initializer(0.01, dtype=self.tf_prec))
+		return tf.compat.v1.get_variable(name, shape, self.tf_prec, tf.compat.v1.constant_initializer(0.01, dtype=self.tf_prec))
 
 
 	def _get_variable_with_weight_decay(self, var_name, var_shape, var_stddev, var_wd):
@@ -320,32 +320,32 @@ class Instance:
 		Returns:
 		Variable Tensor
 		"""
-		var = tf.get_variable(var_name, var_shape, self.tf_prec, tf.truncated_normal_initializer(stddev=var_stddev))
+		var = tf.compat.v1.get_variable(var_name, var_shape, self.tf_prec, tf.compat.v1.truncated_normal_initializer(stddev=var_stddev))
 		if var_wd is not None:
 			weight_decay = tf.multiply(tf.nn.l2_loss(var), var_wd, name='weight_loss')
-			tf.add_to_collection('losses', weight_decay)
+			tf.compat.v1.add_to_collection('losses', weight_decay)
 		return var
 
 	def dropout_selu(self, x, rate, alpha= -1.7580993408473766, fixedPointMean=0.0, fixedPointVar=1.0, noise_shape=None, seed=None, name=None, training=False):
 		"""Dropout to a value with rescaling."""
 		def dropout_selu_impl(x, rate, alpha, noise_shape, seed, name):
 			keep_prob = 1.0 - rate
-			x = tf.convert_to_tensor(x, name="x")
+			x = tf.convert_to_tensor(value=x, name="x")
 			if isinstance(keep_prob, numbers.Real) and not 0 < keep_prob <= 1:
 				raise ValueError("keep_prob must be a scalar tensor or a float in the "
 								"range (0, 1], got %g" % keep_prob)
-			keep_prob = tf.convert_to_tensor(keep_prob, dtype=x.dtype, name="keep_prob")
+			keep_prob = tf.convert_to_tensor(value=keep_prob, dtype=x.dtype, name="keep_prob")
 			keep_prob.get_shape().assert_is_compatible_with([])
 
-			alpha = tf.convert_to_tensor(alpha, dtype=x.dtype, name="alpha")
+			alpha = tf.convert_to_tensor(value=alpha, dtype=x.dtype, name="alpha")
 			keep_prob.get_shape().assert_is_compatible_with([])
 
-			if tf.contrib.util.constant_value(keep_prob) == 1:
+			if tf.get_static_value(keep_prob) == 1:
 				return x
 
-			noise_shape = noise_shape if noise_shape is not None else tf.shape(x)
+			noise_shape = noise_shape if noise_shape is not None else tf.shape(input=x)
 			random_tensor = keep_prob
-			random_tensor += tf.random_uniform(noise_shape, seed=seed, dtype=x.dtype)
+			random_tensor += tf.random.uniform(noise_shape, seed=seed, dtype=x.dtype)
 			binary_tensor = tf.floor(random_tensor)
 			ret = x * binary_tensor + alpha * (1-binary_tensor)
 
@@ -356,17 +356,17 @@ class Instance:
 			ret.set_shape(x.get_shape())
 			return ret
 
-		with tf.name_scope(name, "dropout", [x]) as name:
+		with tf.compat.v1.name_scope(name, "dropout", [x]) as name:
 			# return dropout_selu_impl(x, rate, alpha, noise_shape, seed, name) if training else array_ops.identity(x)
-			return tf.cond(training,
-				lambda: dropout_selu_impl(x, rate, alpha, noise_shape, seed, name),
-				lambda: tf.identity(x))
+			return tf.cond(pred=training,
+				true_fn=lambda: dropout_selu_impl(x, rate, alpha, noise_shape, seed, name),
+				false_fn=lambda: tf.identity(x))
 
 	def selu(self, x):
-		with tf.name_scope('elu') as scope:
+		with tf.compat.v1.name_scope('elu') as scope:
 			alpha = 1.6732632423543772848170429916717
 			scale = 1.0507009873554804934193349852946
-			return scale*tf.where(x>=0.0, x, alpha*tf.nn.elu(x))
+			return scale*tf.compat.v1.where(x>=0.0, x, alpha*tf.nn.elu(x))
 
 	def placeholder_inputs(self, batch_size):
 		raise("Populate placeholder_inputs")
@@ -407,7 +407,7 @@ class Instance:
 		hiddens = []
 		for i in range(len(self.HiddenLayers)):
 			if i == 0:
-				with tf.name_scope('hidden1'):
+				with tf.compat.v1.name_scope('hidden1'):
 					weights = self._variable_with_weight_decay(var_name='weights',
 									var_shape=([self.inshape, self.HiddenLayers[i]]),
 									var_stddev= 1.0 / math.sqrt(float(self.inshape)), var_wd= 0.00)
@@ -416,13 +416,13 @@ class Instance:
 					# tf.scalar_summary('min/' + weights.name, tf.reduce_min(weights))
 					# tf.histogram_summary(weights.name, weights)
 			else:
-				with tf.name_scope('hidden'+str(i+1)):
+				with tf.compat.v1.name_scope('hidden'+str(i+1)):
 					weights = self._variable_with_weight_decay(var_name='weights',
 									var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]],
 									var_stddev= 1.0 / math.sqrt(float(self.HiddenLayers[i-1])), var_wd= 0.00)
 					biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec),name='biases')
 					hiddens.append(self.activation_function(tf.matmul(hiddens[-1], weights) + biases))
-		with tf.name_scope('regression_linear'):
+		with tf.compat.v1.name_scope('regression_linear'):
 			weights = self._variable_with_weight_decay(var_name='weights',
 							var_shape=[self.HiddenLayers[-1], self.outshape],
 							var_stddev= 1.0 / math.sqrt(float(self.HiddenLayers[-1])), var_wd= 0.00)
@@ -454,8 +454,8 @@ class Instance:
 		Returns:
 		train_op: The Op for training.
 		"""
-		tf.summary.scalar(loss.op.name, loss)
-		optimizer = tf.train.AdamOptimizer(learning_rate)
+		tf.compat.v1.summary.scalar(loss.op.name, loss)
+		optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate)
 		global_step = tf.Variable(0, name='global_step', trainable=False)
 		train_op = optimizer.minimize(loss, global_step=global_step)
 		return train_op
@@ -485,10 +485,10 @@ class Instance:
 			self.output = self.inference(self.embeds_placeholder)
 			self.total_loss, self.loss = self.loss_op(self.output, self.labels_placeholder)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.sess.run(init)
 			try: # I think this may be broken
 				chkfiles = [x for x in os.listdir(self.train_dir) if (x.count('chk')>0 and x.count('meta')==0)]
@@ -497,14 +497,14 @@ class Instance:
 					most_recent_meta_file=metafiles[0]
 					print("Restoring training from Metafile: ",most_recent_meta_file)
 					#Set config to allow soft device placement for temporary fix to known issue with Tensorflow up to version 0.12 atleast - JEH
-					config = tf.ConfigProto(allow_soft_placement=True)
-					self.sess = tf.Session(config=config)
-					self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+					config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+					self.sess = tf.compat.v1.Session(config=config)
+					self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 					self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 			except Exception as Ex:
 				print("Restore Failed 2341325",Ex)
 				pass
-			self.summary_writer =  tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer =  tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			return
 
 	def test(self,step):
@@ -536,10 +536,10 @@ class Instance_fc_classify(Instance):
 		# It returns a bool tensor with shape [batch_size] that is true for
 		# the examples where the label is in the top k (here k=1)
 		# of all logits for that example.
-		labels = tf.to_int64(labels)
-		correct = tf.nn.in_top_k(output, labels, 1)
+		labels = tf.cast(labels, dtype=tf.int64)
+		correct = tf.nn.in_top_k(predictions=output, targets=labels, k=1)
 		# Return the number of true entries.
-		return tf.reduce_sum(tf.cast(correct, tf.int32))
+		return tf.reduce_sum(input_tensor=tf.cast(correct, tf.int32))
 
 	def evaluate(self, eval_input):
 		# Check sanity of input
@@ -574,8 +574,8 @@ class Instance_fc_classify(Instance):
 			self.output = self.inference(self.embeds_placeholder)
 			self.correct = self.n_correct(self.output, self.labels_placeholder)
 			self.prob = self.justpreds(self.output)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			chkfiles = [x for x in os.listdir(self.train_dir) if (x.count('chk')>0 and x.count('meta')==0)]
 			if (len(chkfiles)>0):
 				most_recent_chk_file=chkfiles[0]
@@ -605,8 +605,8 @@ class Instance_fc_classify(Instance):
 		# Note that the shapes of the placeholders match the shapes of the full
 		# image and label tensors, except the first dimension is now batch_size
 		# rather than the full size of the train or test data sets.
-		inputs_pl = tf.placeholder(self.tf_prec, shape=(batch_size,self.inshape)) # JAP : Careful about the shapes... should be flat for now.
-		outputs_pl = tf.placeholder(self.tf_prec, shape=(batch_size))
+		inputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=(batch_size,self.inshape)) # JAP : Careful about the shapes... should be flat for now.
+		outputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=(batch_size))
 		return inputs_pl, outputs_pl
 
 	def justpreds(self, output):
@@ -629,11 +629,11 @@ class Instance_fc_classify(Instance):
 		loss: Loss tensor of type float.
 		"""
 		prob = tf.nn.softmax(output)
-		labels = tf.to_int64(labels)
+		labels = tf.cast(labels, dtype=tf.int64)
 		cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(output, labels, name='xentropy')
-		cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
-		tf.add_to_collection('losses', cross_entropy_mean)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), cross_entropy_mean, prob
+		cross_entropy_mean = tf.reduce_mean(input_tensor=cross_entropy, name='cross_entropy')
+		tf.compat.v1.add_to_collection('losses', cross_entropy_mean)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), cross_entropy_mean, prob
 
 	def print_training(self, step, loss, total_correct, Ncase, duration):
 		denom=max(int(Ncase/self.batch_size),1)
@@ -720,15 +720,15 @@ class Instance_fc_sqdiff(Instance):
 		# Note that the shapes of the placeholders match the shapes of the full
 		# image and label tensors, except the first dimension is now batch_size
 		# rather than the full size of the train or test data sets.
-		inputs_pl = tf.placeholder(self.tf_prec, shape=tuple([batch_size]+list(self.inshape)))
-		outputs_pl = tf.placeholder(self.tf_prec, shape=tuple([batch_size]+list(self.outshape)))
+		inputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([batch_size]+list(self.inshape)))
+		outputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([batch_size]+list(self.outshape)))
 		return inputs_pl, outputs_pl
 
 	def loss_op(self, output, labels):
 		diff  = tf.subtract(output, labels)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def train_step(self,step):
 		Ncase_train = self.TData.NTrainCasesInScratch()
@@ -806,18 +806,18 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 	def compute_normalization_constants(self):
 		batch_data = self.TData.GetTrainBatch(20 * self.batch_size)
 		self.TData.ScratchPointer = 0
-		xyzs, Zs, labels = tf.convert_to_tensor(batch_data[0], dtype=self.tf_prec), tf.convert_to_tensor(batch_data[1]), tf.convert_to_tensor(batch_data[2], dtype=self.tf_prec)
-		num_mols = tf.shape(xyzs)[0]
-		rotation_params = tf.stack([np.pi * tf.random_uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
-				np.pi * tf.random_uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
-				tf.random_uniform([num_mols], maxval=2.0, dtype=self.tf_prec)], axis=-1)
+		xyzs, Zs, labels = tf.convert_to_tensor(value=batch_data[0], dtype=self.tf_prec), tf.convert_to_tensor(value=batch_data[1]), tf.convert_to_tensor(value=batch_data[2], dtype=self.tf_prec)
+		num_mols = tf.shape(input=xyzs)[0]
+		rotation_params = tf.stack([np.pi * tf.random.uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
+				np.pi * tf.random.uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
+				tf.random.uniform([num_mols], maxval=2.0, dtype=self.tf_prec)], axis=-1)
 		rotated_xyzs, rotated_labels = tf_random_rotate(xyzs, rotation_params, labels)
 		embedding, labels, _, _ = tf_gaussian_spherical_harmonics_element(rotated_xyzs, Zs, rotated_labels,
 											self.element, tf.Variable(self.gaussian_params, dtype=self.tf_prec),
 											tf.Variable(self.atomic_embed_factors, trainable=False, dtype=self.tf_prec),
 											self.l_max, self.orthogonalize)
-		with tf.Session() as sess:
-			sess.run(tf.global_variables_initializer())
+		with tf.compat.v1.Session() as sess:
+			sess.run(tf.compat.v1.global_variables_initializer())
 			embed, label = sess.run([embedding, labels])
 		self.inmean, self.instd = np.mean(embed, axis=0), np.std(embed, axis=0)
 		self.outmean, self.outstd = np.mean(label), np.std(label)
@@ -826,9 +826,9 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 	def TrainPrepare(self):
 		""" Builds the graphs by calling inference """
 		with tf.Graph().as_default():
-			self.xyzs_pl = tf.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]))
-			self.Zs_pl = tf.placeholder(tf.int32, shape=tuple([None, self.MaxNAtoms]))
-			self.labels_pl = tf.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]))
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]))
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=tuple([None, self.MaxNAtoms]))
+			self.labels_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]))
 			self.gaussian_params = tf.Variable(self.gaussian_params, trainable=False, dtype=self.tf_prec)
 			self.atomic_embed_factors = tf.Variable(self.atomic_embed_factors, trainable=False, dtype=self.tf_prec)
 			element = tf.constant(self.element, dtype=tf.int32)
@@ -836,9 +836,9 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 			instd = tf.constant(self.instd, dtype=self.tf_prec)
 			outmean = tf.constant(self.outmean, dtype=self.tf_prec)
 			outstd = tf.constant(self.outstd, dtype=self.tf_prec)
-			rotation_params = tf.stack([np.pi * tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_prec),
-					np.pi * tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_prec),
-					tf.random_uniform([self.batch_size], maxval=2.0, dtype=self.tf_prec)], axis=-1, name="rotation_params")
+			rotation_params = tf.stack([np.pi * tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_prec),
+					np.pi * tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_prec),
+					tf.random.uniform([self.batch_size], maxval=2.0, dtype=self.tf_prec)], axis=-1, name="rotation_params")
 			rotated_xyzs, rotated_labels = tf_random_rotate(self.xyzs_pl, rotation_params, self.labels_pl)
 			self.embedding, self.labels, _, min_eigenval = tf_gaussian_spherical_harmonics_element(rotated_xyzs, self.Zs_pl, element,
 					self.gaussian_params, self.atomic_embed_factors, self.l_max, rotated_labels, orthogonalize=self.orthogonalize)
@@ -846,22 +846,22 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 			self.norm_labels = (self.labels - outmean) / outstd
 			self.norm_output = self.inference(self.norm_embedding)
 			self.output = (self.norm_output * outstd) + outmean
-			self.n_atoms_batch = tf.shape(self.output)[0]
+			self.n_atoms_batch = tf.shape(input=self.output)[0]
 			self.total_loss, self.loss = self.loss_op(self.norm_output, self.norm_labels)
-			barrier_function = -1000.0 * tf.log(tf.concat([self.gaussian_params + 0.9, tf.expand_dims(6.5 - self.gaussian_params[:,0], axis=-1), tf.expand_dims(1.75 - self.gaussian_params[:,1], axis=-1)], axis=1))
-			truncated_barrier_function = tf.reduce_sum(tf.where(tf.greater(barrier_function, 0.0), barrier_function, tf.zeros_like(barrier_function)))
+			barrier_function = -1000.0 * tf.math.log(tf.concat([self.gaussian_params + 0.9, tf.expand_dims(6.5 - self.gaussian_params[:,0], axis=-1), tf.expand_dims(1.75 - self.gaussian_params[:,1], axis=-1)], axis=1))
+			truncated_barrier_function = tf.reduce_sum(input_tensor=tf.compat.v1.where(tf.greater(barrier_function, 0.0), barrier_function, tf.zeros_like(barrier_function)))
 			gaussian_overlap_constraint = tf.square(0.001 / min_eigenval)
 			loss_and_constraint = self.total_loss + truncated_barrier_function + gaussian_overlap_constraint
 			self.train_op = self.training(loss_and_constraint, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.sess.run(init)
-			self.summary_writer = tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			if self.profiling:
-				self.options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-				self.run_metadata = tf.RunMetadata()
+				self.options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
+				self.run_metadata = tf.compat.v1.RunMetadata()
 			return
 
 	def inference(self, inputs):
@@ -876,23 +876,23 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 		layers=[]
 		for i in range(len(self.HiddenLayers)):
 			if i == 0:
-				with tf.name_scope('hidden1'):
+				with tf.compat.v1.name_scope('hidden1'):
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]],
 																var_stddev = math.sqrt(2.0 / float(self.inshape)), var_wd=0.00)
 					biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
 					layers.append(self.activation_function(tf.matmul(inputs, weights) + biases))
 			else:
-				with tf.name_scope('hidden'+str(i+1)):
+				with tf.compat.v1.name_scope('hidden'+str(i+1)):
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1],self.HiddenLayers[i]],
 																var_stddev = math.sqrt(2.0 / float(self.HiddenLayers[i-1])), var_wd=0.00)
 					biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
 					layers.append(self.activation_function(tf.matmul(layers[-1], weights) + biases))
-		with tf.name_scope('regression_linear'):
+		with tf.compat.v1.name_scope('regression_linear'):
 			weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[-1], self.outshape],
 														var_stddev = math.sqrt(2.0 / float(self.HiddenLayers[-1])), var_wd=None)
 			biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
 			outputs = tf.matmul(layers[-1], weights) + biases
-		tf.verify_tensor_all_finite(outputs,"Nan in output!!!")
+		tf.compat.v1.verify_tensor_all_finite(outputs,"Nan in output!!!")
 		return outputs
 
 	def evaluate(self, eval_input):
@@ -947,8 +947,8 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 	def loss_op(self, output, labels):
 		diff  = tf.subtract(output, labels)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 
 
@@ -1060,9 +1060,9 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 	def evaluate_prepare(self):
 		""" Builds the graphs by calling inference """
 		with tf.Graph().as_default():
-			self.xyzs_pl = tf.placeholder(self.tf_prec, shape=tuple([None, 465, 3]))
-			self.Zs_pl = tf.placeholder(tf.int32, shape=tuple([None, 465]))
-			self.labels_pl = tf.placeholder(self.tf_prec, shape=tuple([None, 465, 3]))
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, 465, 3]))
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=tuple([None, 465]))
+			self.labels_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, 465, 3]))
 			self.gaussian_params = tf.Variable(self.gaussian_params, trainable=False, dtype=self.tf_prec)
 			self.atomic_embed_factors = tf.Variable(self.atomic_embed_factors, trainable=False, dtype=self.tf_prec)
 			element = tf.constant(self.element, dtype=tf.int32)
@@ -1080,20 +1080,20 @@ class Instance_fc_sqdiff_GauSH_direct(Instance):
 			# self.norm_labels = (self.labels - outmean) / outstd
 			self.norm_output = self.inference(self.norm_embedding)
 			self.output = (self.norm_output * outstd) + outmean
-			self.n_atoms_batch = tf.shape(self.output)[0]
+			self.n_atoms_batch = tf.shape(input=self.output)[0]
 			# self.total_loss, self.loss = self.loss_op(self.norm_output, self.norm_labels)
 			# barrier_function = -1000.0 * tf.log(tf.concat([self.gaussian_params + 0.9, tf.expand_dims(6.5 - self.gaussian_params[:,0], axis=-1), tf.expand_dims(1.75 - self.gaussian_params[:,1], axis=-1)], axis=1))
 			# truncated_barrier_function = tf.reduce_sum(tf.where(tf.greater(barrier_function, 0.0), barrier_function, tf.zeros_like(barrier_function)))
 			# gaussian_overlap_constraint = tf.square(0.001 / min_eigenval)
 			# loss_and_constraint = self.total_loss + truncated_barrier_function + gaussian_overlap_constraint
 			# self.train_op = self.training(loss_and_constraint, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
+			self.summary_op = tf.compat.v1.summary.merge_all()
 			# init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.saver.restore(self.sess, self.chk_file)
 			# self.sess.run(init)
-			self.summary_writer = tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			# if self.profiling:
 			# 	self.options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
 			# 	self.run_metadata = tf.RunMetadata()
@@ -1156,18 +1156,18 @@ class FCGauSHDirectRotationInvariant(Instance_fc_sqdiff_GauSH_direct):
 	def compute_normalization_constants(self):
 		batch_data = self.TData.GetTrainBatch(20 * self.batch_size)
 		self.TData.ScratchPointer = 0
-		xyzs, Zs, labels = tf.convert_to_tensor(batch_data[0], dtype=self.tf_prec), tf.convert_to_tensor(batch_data[1]), tf.convert_to_tensor(batch_data[2], dtype=self.tf_prec)
-		num_mols = tf.shape(xyzs)[0]
-		rotation_params = tf.stack([np.pi * tf.random_uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
-				np.pi * tf.random_uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
-				tf.random_uniform([num_mols], maxval=2.0, dtype=self.tf_prec)], axis=-1)
+		xyzs, Zs, labels = tf.convert_to_tensor(value=batch_data[0], dtype=self.tf_prec), tf.convert_to_tensor(value=batch_data[1]), tf.convert_to_tensor(value=batch_data[2], dtype=self.tf_prec)
+		num_mols = tf.shape(input=xyzs)[0]
+		rotation_params = tf.stack([np.pi * tf.random.uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
+				np.pi * tf.random.uniform([num_mols], maxval=2.0, dtype=self.tf_prec),
+				tf.random.uniform([num_mols], maxval=2.0, dtype=self.tf_prec)], axis=-1)
 		rotated_xyzs, rotated_labels = tf_random_rotate(xyzs, rotation_params, labels)
 		embedding, labels, _, _ = tf_gaussian_spherical_harmonics_element(rotated_xyzs, Zs, rotated_labels,
 											self.element, tf.Variable(self.gaussian_params, dtype=self.tf_prec),
 											tf.Variable(self.atomic_embed_factors, trainable=False, dtype=self.tf_prec),
 											self.l_max, self.orthogonalize)
-		with tf.Session() as sess:
-			sess.run(tf.global_variables_initializer())
+		with tf.compat.v1.Session() as sess:
+			sess.run(tf.compat.v1.global_variables_initializer())
 			embed, label = sess.run([embedding, labels])
 		self.inmean, self.instd = np.mean(embed, axis=0), np.std(embed, axis=0)
 		self.outmean, self.outstd = np.mean(label), np.std(label)
@@ -1176,52 +1176,52 @@ class FCGauSHDirectRotationInvariant(Instance_fc_sqdiff_GauSH_direct):
 	def TrainPrepare(self):
 		""" Builds the graphs by calling inference """
 		with tf.Graph().as_default():
-			self.xyzs_pl = tf.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]), name="xyzs_pl")
-			self.Zs_pl = tf.placeholder(tf.int32, shape=tuple([None, self.MaxNAtoms]), name="Zs_pl")
-			self.labels_pl = tf.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]), name="labels_pl")
+			self.xyzs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]), name="xyzs_pl")
+			self.Zs_pl = tf.compat.v1.placeholder(tf.int32, shape=tuple([None, self.MaxNAtoms]), name="Zs_pl")
+			self.labels_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, self.MaxNAtoms, 3]), name="labels_pl")
 			self.gaussian_params = tf.Variable(self.gaussian_params, trainable=False, dtype=self.tf_prec)
 			self.atomic_embed_factors = tf.Variable(self.atomic_embed_factors, trainable=False, dtype=self.tf_prec)
-			num_mols = tf.shape(self.xyzs_pl)[0]
+			num_mols = tf.shape(input=self.xyzs_pl)[0]
 			element = tf.constant(self.element, dtype=tf.int32)
 			inmean = tf.constant(self.inmean, dtype=self.tf_prec)
 			instd = tf.constant(self.instd, dtype=self.tf_prec)
 			outmean = tf.constant(self.outmean, dtype=self.tf_prec)
 			outstd = tf.constant(self.outstd, dtype=self.tf_prec)
-			with tf.name_scope("Rotation"):
-				rotation_params = tf.stack([np.pi * tf.random_uniform([num_mols], minval=0.1, maxval=1.9, dtype=self.tf_prec),
-						np.pi * tf.random_uniform([num_mols], minval=0.1, maxval=1.9, dtype=self.tf_prec),
-						tf.random_uniform([num_mols], minval=0.1, maxval=1.9, dtype=self.tf_prec)], axis=-1, name="rotation_params")
+			with tf.compat.v1.name_scope("Rotation"):
+				rotation_params = tf.stack([np.pi * tf.random.uniform([num_mols], minval=0.1, maxval=1.9, dtype=self.tf_prec),
+						np.pi * tf.random.uniform([num_mols], minval=0.1, maxval=1.9, dtype=self.tf_prec),
+						tf.random.uniform([num_mols], minval=0.1, maxval=1.9, dtype=self.tf_prec)], axis=-1, name="rotation_params")
 				rotated_xyzs, rotation_matrix = tf_random_rotate(self.xyzs_pl, rotation_params, return_matrix=True)
-			with tf.name_scope("Embedding_Normalization"):
+			with tf.compat.v1.name_scope("Embedding_Normalization"):
 				self.embedding, self.labels, mol_atom_indices, min_eigenval = tf_gaussian_spherical_harmonics_element(rotated_xyzs,
 						self.Zs_pl, self.labels_pl, element, self.gaussian_params, self.atomic_embed_factors, self.l_max, orthogonalize=self.orthogonalize)
 				self.norm_embedding = (self.embedding - inmean) / instd
 				self.norm_labels = (self.labels - outmean) / outstd
 			self.norm_output = self.inference(self.norm_embedding)
-			with tf.name_scope("Inverse_Rotation"):
-				inverse_rotation_matrix = tf.matrix_inverse(tf.gather(rotation_matrix, mol_atom_indices[:,0]))
+			with tf.compat.v1.name_scope("Inverse_Rotation"):
+				inverse_rotation_matrix = tf.linalg.inv(tf.gather(rotation_matrix, mol_atom_indices[:,0]))
 				element_xyzs, rotated_element_xyzs = tf.gather_nd(self.xyzs_pl, mol_atom_indices), tf.gather_nd(rotated_xyzs, mol_atom_indices)
 				unrotated_norm_output = tf.squeeze(tf.einsum("lij,lkj->lki", inverse_rotation_matrix,
 						tf.expand_dims(rotated_element_xyzs + self.norm_output, axis=1))) - element_xyzs
 			self.output = (unrotated_norm_output * outstd) + outmean
-			self.n_atoms_batch = tf.cast(tf.shape(self.output)[0], self.tf_prec)
+			self.n_atoms_batch = tf.cast(tf.shape(input=self.output)[0], self.tf_prec)
 			self.total_loss, self.loss = self.loss_op(unrotated_norm_output, self.norm_labels)
 			self.total_loss /= self.n_atoms_batch
 			# barrier_function = -1000.0 * tf.log(tf.concat([self.gaussian_params + 0.9, tf.expand_dims(6.5 - self.gaussian_params[:,0], axis=-1), tf.expand_dims(1.75 - self.gaussian_params[:,1], axis=-1)], axis=1))
 			# truncated_barrier_function = tf.reduce_sum(tf.where(tf.greater(barrier_function, 0.0), barrier_function, tf.zeros_like(barrier_function)))
 			# gaussian_overlap_constraint = tf.square(0.001 / min_eigenval)
-			self.rotation_constraint = tf.reduce_sum(tf.square(tf.clip_by_value(tf.gradients(self.output, rotation_params), -1, 1))) / self.n_atoms_batch
+			self.rotation_constraint = tf.reduce_sum(input_tensor=tf.square(tf.clip_by_value(tf.gradients(ys=self.output, xs=rotation_params), -1, 1))) / self.n_atoms_batch
 			loss_and_constraint = self.total_loss + self.rotation_constraint
 			self.train_op = self.training(loss_and_constraint, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.sess.run(init)
-			self.summary_writer = tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			if self.profiling:
-				self.options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-				self.run_metadata = tf.RunMetadata()
+				self.options = tf.compat.v1.RunOptions(trace_level=tf.compat.v1.RunOptions.FULL_TRACE)
+				self.run_metadata = tf.compat.v1.RunMetadata()
 			return
 
 	# def training(self, loss, learning_rate, momentum):
@@ -1297,8 +1297,8 @@ class FCGauSHDirectRotationInvariant(Instance_fc_sqdiff_GauSH_direct):
 	def loss_op(self, output, labels):
 		diff  = tf.subtract(output, labels)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def train_step(self,step):
 		Ncase_train = self.TData.NTrain
@@ -1395,30 +1395,30 @@ class Instance_del_fc_sqdiff(Instance_fc_sqdiff):
 		LOGGER.debug("hidden2_units: "+str(hidden2_units))
 		LOGGER.debug("hidden3_units: "+str(hidden3_units))
 		# Hidden 1
-		with tf.name_scope('hidden1'):
+		with tf.compat.v1.name_scope('hidden1'):
 			weights = self._variable_with_weight_decay(var_name='weights', var_shape=list(self.inshape)+[hidden1_units], var_stddev= 0.4 / math.sqrt(float(self.inshape[0])), var_wd= 0.00)
 			biases = tf.Variable(tf.zeros([hidden1_units], dtype=self.tf_prec), name='biases')
 			hidden1 = tf.nn.relu(tf.matmul(inputs[:-3], weights) + biases)
 			#tf.summary.scalar('min/' + weights.name, tf.reduce_min(weights))
 			#tf.summary.histogram(weights.name, weights)
 		# Hidden 2
-		with tf.name_scope('hidden2'):
+		with tf.compat.v1.name_scope('hidden2'):
 			weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden1_units, hidden2_units], var_stddev= 0.4 / math.sqrt(float(hidden1_units)), var_wd= 0.00)
 			biases = tf.Variable(tf.zeros([hidden2_units], dtype=self.tf_prec),name='biases')
 			hidden2 = tf.nn.relu(tf.matmul(hidden1, weights) + biases)
 
 		# Hidden 3
-		with tf.name_scope('hidden3'):
+		with tf.compat.v1.name_scope('hidden3'):
 			weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden2_units, hidden3_units], var_stddev= 0.4 / math.sqrt(float(hidden2_units)), var_wd= 0.00)
 			biases = tf.Variable(tf.zeros([hidden3_units], dtype=self.tf_prec),name='biases')
 			hidden3 = tf.nn.relu(tf.matmul(hidden2, weights) + biases)
 		#Delta Layer
-		with tf.name_scope('delta_layer'):
+		with tf.compat.v1.name_scope('delta_layer'):
 			weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden3_units]+ list(2*self.outshape), var_stddev= 0.4 / math.sqrt(float(hidden3_units)), var_wd= 0.00)
 			biases = tf.Variable(tf.zeros(self.outshape, dtype=self.tf_prec), name='biases')
 			delta = tf.matmul(hidden3, weights) + biases
 		# Linear
-		with tf.name_scope('regression_linear'):
+		with tf.compat.v1.name_scope('regression_linear'):
 			delta_out = tf.multiply(tf.slice(delta,[self.outshape],[self.outshape]),inputs[-3:])
 			output = tf.add(tf.slice(delta,[0],[self.outshape]),delta_out)
 		return output
@@ -1426,8 +1426,8 @@ class Instance_del_fc_sqdiff(Instance_fc_sqdiff):
 	def loss_op(self, output, labels):
 		diff  = tf.subtract(output, labels)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 class Instance_conv2d_sqdiff(Instance):
 	def __init__(self, TData_, ele_ = 1 , Name_=None):
@@ -1449,31 +1449,31 @@ class Instance_conv2d_sqdiff(Instance):
 		# Note that the shapes of the placeholders match the shapes of the full
 		# image and label tensors, except the first dimension is now batch_size
 		# rather than the full size of the train or test data sets.
-		inputs_pl = tf.placeholder(self.tf_prec, shape=tuple([batch_size,self.inshape]))
-		outputs_pl = tf.placeholder(self.tf_prec, shape=tuple([batch_size, self.outshape]))
+		inputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([batch_size,self.inshape]))
+		outputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([batch_size, self.outshape]))
 		return inputs_pl, outputs_pl
 
 	def _weight_variable(self, name, shape):
-		return tf.get_variable(name, shape, self.tf_prec, tf.truncated_normal_initializer(stddev=0.01))
+		return tf.compat.v1.get_variable(name, shape, self.tf_prec, tf.compat.v1.truncated_normal_initializer(stddev=0.01))
 
 	def _bias_variable(self, name, shape):
-		return tf.get_variable(name, shape, self.tf_prec, tf.constant_initializer(0.01, dtype=self.tf_prec))
+		return tf.compat.v1.get_variable(name, shape, self.tf_prec, tf.compat.v1.constant_initializer(0.01, dtype=self.tf_prec))
 
 	def conv2d(self, x, W, b, strides=1):
 		"""
 		2D Convolution wrapper with bias and relu activation
 		"""
-		x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
+		x = tf.nn.conv2d(input=x, filters=W, strides=[1, strides, strides, 1], padding='SAME')
 		x = tf.nn.bias_add(x, b)
 		return tf.nn.relu(x)
 
 	def inference(self, input):
 		FC_SIZE = 512
-		with tf.variable_scope('conv1') as scope:
+		with tf.compat.v1.variable_scope('conv1') as scope:
 			in_filters = 1
 			out_filters = 8
 			kernel = self._weight_variable('weights', [2, 2, 2, in_filters, out_filters])
-			conv = tf.nn.conv2d(input, kernel, [1, 1, 1, 1], padding='SAME') # third arg. is the strides case,xstride,ystride,zstride,channel stride
+			conv = tf.nn.conv2d(input=input, filters=kernel, strides=[1, 1, 1, 1], padding='SAME') # third arg. is the strides case,xstride,ystride,zstride,channel stride
 			biases = self._bias_variable('biases', [out_filters])
 			bias = tf.nn.bias_add(conv, biases)
 			conv1 = tf.nn.relu(bias, name=scope.name)
@@ -1484,7 +1484,7 @@ class Instance_conv2d_sqdiff(Instance):
 		#norm1 = pool1  # tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta = 0.75, name='norm1')
 		#prev_layer = norm1
 
-		with tf.variable_scope('conv2') as scope:
+		with tf.compat.v1.variable_scope('conv2') as scope:
 			out_filters = 16
 			kernel = self._weight_variable('weights', [2, 2, 2, in_filters, out_filters])
 			conv = tf.nn.conv3d(prev_layer, kernel, [1, 1, 1, 1, 1], padding='SAME')
@@ -1497,7 +1497,7 @@ class Instance_conv2d_sqdiff(Instance):
 		# normalize prev_layer here
 		# prev_layer = tf.nn.max_pool3d(prev_layer, ksize=[1, 3, 3, 3, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
 
-		with tf.variable_scope('local1') as scope:
+		with tf.compat.v1.variable_scope('local1') as scope:
 			dim = np.prod(prev_layer.get_shape().as_list()[1:])
 			prev_layer_flat = tf.reshape(prev_layer, [-1, dim])
 			weights = self._weight_variable('weights', [dim, FC_SIZE])
@@ -1505,7 +1505,7 @@ class Instance_conv2d_sqdiff(Instance):
 			local1 = tf.nn.relu(tf.matmul(prev_layer_flat, weights) + biases, name=scope.name)
 			prev_layer = local1
 
-		with tf.variable_scope('local2') as scope:
+		with tf.compat.v1.variable_scope('local2') as scope:
 			dim = np.prod(prev_layer.get_shape().as_list()[1:])
 			prev_layer_flat = tf.reshape(prev_layer, [-1, dim])
 			weights = self._weight_variable('weights', [dim, FC_SIZE])
@@ -1513,7 +1513,7 @@ class Instance_conv2d_sqdiff(Instance):
 			local2 = tf.nn.relu(tf.matmul(prev_layer_flat, weights) + biases, name=scope.name)
 			prev_layer = local2
 
-		with tf.variable_scope('regression_linear') as scope:
+		with tf.compat.v1.variable_scope('regression_linear') as scope:
 			dim = np.prod(prev_layer.get_shape().as_list()[1:])
 			weights = self._weight_variable('weights', [dim]+list(self.outshape))
 			biases = self._bias_variable('biases', self.outshape)
@@ -1550,8 +1550,8 @@ class Instance_conv2d_sqdiff(Instance):
 		diff  = tf.slice(tf.sub(output, labels),[0,self.outshape[0]-3],[-1,-1])
 		# this only compares direct displacement predictions.
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def train_step(self,step):
 		Ncase_train = self.TData.NTrainCasesInScratch()
@@ -1626,19 +1626,19 @@ class Instance_3dconv_sqdiff(Instance):
 		if (self.inshape[0]!=GRIDS.NGau3):
 			print("Bad inputs... ", self.inshape)
 			raise Exception("Nonsquare")
-		inputs_pl = tf.placeholder(self.tf_prec, shape=tuple([batch_size,GRIDS.NGau,GRIDS.NGau,GRIDS.NGau,1]))
-		outputs_pl = tf.placeholder(self.tf_prec, shape=tuple([batch_size]+list(self.outshape)))
+		inputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([batch_size,GRIDS.NGau,GRIDS.NGau,GRIDS.NGau,1]))
+		outputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([batch_size]+list(self.outshape)))
 		return inputs_pl, outputs_pl
 
 	def _weight_variable(self, name, shape):
-		return tf.get_variable(name, shape, self.tf_prec, tf.truncated_normal_initializer(stddev=0.01))
+		return tf.compat.v1.get_variable(name, shape, self.tf_prec, tf.compat.v1.truncated_normal_initializer(stddev=0.01))
 
 	def _bias_variable(self, name, shape):
-		return tf.get_variable(name, shape, self.tf_prec, tf.constant_initializer(0.01, dtype=self.tf_prec))
+		return tf.compat.v1.get_variable(name, shape, self.tf_prec, tf.compat.v1.constant_initializer(0.01, dtype=self.tf_prec))
 
 	def inference(self, input):
 		FC_SIZE = 512
-		with tf.variable_scope('conv1') as scope:
+		with tf.compat.v1.variable_scope('conv1') as scope:
 			in_filters = 1
 			out_filters = 8
 			kernel = self._weight_variable('weights', [2, 2, 2, in_filters, out_filters])
@@ -1653,7 +1653,7 @@ class Instance_3dconv_sqdiff(Instance):
 		#norm1 = pool1  # tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta = 0.75, name='norm1')
 		#prev_layer = norm1
 
-		with tf.variable_scope('conv2') as scope:
+		with tf.compat.v1.variable_scope('conv2') as scope:
 			out_filters = 16
 			kernel = self._weight_variable('weights', [2, 2, 2, in_filters, out_filters])
 			conv = tf.nn.conv3d(prev_layer, kernel, [1, 1, 1, 1, 1], padding='SAME')
@@ -1666,7 +1666,7 @@ class Instance_3dconv_sqdiff(Instance):
 		# normalize prev_layer here
 		# prev_layer = tf.nn.max_pool3d(prev_layer, ksize=[1, 3, 3, 3, 1], strides=[1, 2, 2, 2, 1], padding='SAME')
 
-		with tf.variable_scope('local1') as scope:
+		with tf.compat.v1.variable_scope('local1') as scope:
 			dim = np.prod(prev_layer.get_shape().as_list()[1:])
 			prev_layer_flat = tf.reshape(prev_layer, [-1, dim])
 			weights = self._weight_variable('weights', [dim, FC_SIZE])
@@ -1674,7 +1674,7 @@ class Instance_3dconv_sqdiff(Instance):
 			local1 = tf.nn.relu(tf.matmul(prev_layer_flat, weights) + biases, name=scope.name)
 			prev_layer = local1
 
-		with tf.variable_scope('local2') as scope:
+		with tf.compat.v1.variable_scope('local2') as scope:
 			dim = np.prod(prev_layer.get_shape().as_list()[1:])
 			prev_layer_flat = tf.reshape(prev_layer, [-1, dim])
 			weights = self._weight_variable('weights', [dim, FC_SIZE])
@@ -1682,7 +1682,7 @@ class Instance_3dconv_sqdiff(Instance):
 			local2 = tf.nn.relu(tf.matmul(prev_layer_flat, weights) + biases, name=scope.name)
 			prev_layer = local2
 
-		with tf.variable_scope('regression_linear') as scope:
+		with tf.compat.v1.variable_scope('regression_linear') as scope:
 			dim = np.prod(prev_layer.get_shape().as_list()[1:])
 			weights = self._weight_variable('weights', [dim]+list(self.outshape))
 			biases = self._bias_variable('biases', self.outshape)
@@ -1719,8 +1719,8 @@ class Instance_3dconv_sqdiff(Instance):
 		diff  = tf.slice(tf.sub(output, labels),[0,self.outshape[0]-3],[-1,-1])
 		# this only compares direct displacement predictions.
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def train_step(self,step):
 		Ncase_train = self.TData.NTrainCasesInScratch()

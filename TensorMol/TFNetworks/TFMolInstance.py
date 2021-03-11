@@ -47,18 +47,18 @@ class MolInstance(Instance):
 		hiddens = []
 		for i in range(len(self.HiddenLayers)):
 			if i == 0:
-				with tf.name_scope('hidden1'):
+				with tf.compat.v1.name_scope('hidden1'):
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, self.HiddenLayers[i]], var_stddev= 1.0 / math.sqrt(float(self.inshape[0])), var_wd= 0.00)
 					biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec), name='biases')
 					hiddens.append(self.activation_function(tf.matmul(inputs, weights) + biases))
-					tf.scalar_summary('min/' + weights.name, tf.reduce_min(weights))
+					tf.scalar_summary('min/' + weights.name, tf.reduce_min(input_tensor=weights))
 					tf.histogram_summary(weights.name, weights)
 			else:
-				with tf.name_scope('hidden'+str(i+1)):
+				with tf.compat.v1.name_scope('hidden'+str(i+1)):
 					weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[i-1], self.HiddenLayers[i]], var_stddev= 1.0 / math.sqrt(float(self.HiddenLayers[i-1])), var_wd= 0.00)
 					biases = tf.Variable(tf.zeros([self.HiddenLayers[i]], dtype=self.tf_prec),name='biases')
 					hiddens.append(self.activation_function(tf.matmul(hiddens[-1], weights) + biases))
-		with tf.name_scope('regression_linear'):
+		with tf.compat.v1.name_scope('regression_linear'):
 			weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.HiddenLayers[-1], self.outshape], var_stddev= 1.0 / math.sqrt(float(self.HiddenLayers[-1])), var_wd= 0.00)
 			biases = tf.Variable(tf.zeros(self.outshape, dtype=self.tf_prec), name='biases')
 			output = tf.matmul(hiddens[-1], weights) + biases
@@ -144,10 +144,10 @@ class MolInstance_fc_classify(MolInstance):
 		# It returns a bool tensor with shape [batch_size] that is true for
 		# the examples where the label is in the top k (here k=1)
 		# of all logits for that example.
-		labels = tf.to_int64(labels)
-		correct = tf.nn.in_top_k(output, labels, 1)
+		labels = tf.cast(labels, dtype=tf.int64)
+		correct = tf.nn.in_top_k(predictions=output, targets=labels, k=1)
 		# Return the number of true entries.
-		return tf.reduce_sum(tf.cast(correct, tf.int32))
+		return tf.reduce_sum(input_tensor=tf.cast(correct, tf.int32))
 
 	def evaluate(self, eval_input):
 		# Check sanity of input
@@ -181,8 +181,8 @@ class MolInstance_fc_classify(MolInstance):
 			self.output = self.inference(self.embeds_placeholder, self.hidden1, self.hidden2, self.hidden3)
 			self.correct = self.n_correct(self.output, self.labels_placeholder)
 			self.prob = self.justpreds(self.output)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			self.saver.restore(self.sess, self.chk_file)
 		self.PreparedFor = Ncase
 		return
@@ -210,8 +210,8 @@ class MolInstance_fc_classify(MolInstance):
 		# Note that the shapes of the placeholders match the shapes of the full
 		# image and label tensors, except the first dimension is now batch_size
 		# rather than the full size of the train or test data sets.
-		inputs_pl = tf.placeholder(self.tf_prec, shape=(batch_size,self.inshape)) # JAP : Careful about the shapes... should be flat for now.
-		outputs_pl = tf.placeholder(self.tf_prec, shape=(batch_size))
+		inputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=(batch_size,self.inshape)) # JAP : Careful about the shapes... should be flat for now.
+		outputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=(batch_size))
 		return inputs_pl, outputs_pl
 
 	def justpreds(self, output):
@@ -240,11 +240,11 @@ class MolInstance_fc_classify(MolInstance):
 			loss: Loss tensor of type float.
 		"""
 		prob = tf.nn.softmax(output)
-		labels = tf.to_int64(labels)
+		labels = tf.cast(labels, dtype=tf.int64)
 		cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(output, labels, name='xentropy')
-		cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
-		tf.add_to_collection('losses', cross_entropy_mean)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), cross_entropy_mean, prob
+		cross_entropy_mean = tf.reduce_mean(input_tensor=cross_entropy, name='cross_entropy')
+		tf.compat.v1.add_to_collection('losses', cross_entropy_mean)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), cross_entropy_mean, prob
 
 	def print_training(self, step, loss, total_correct, Ncase, duration):
 		denom=max(int(Ncase/self.batch_size),1)
@@ -259,18 +259,18 @@ class MolInstance_fc_classify(MolInstance):
 			self.total_loss, self.loss, self.prob = self.loss_op(self.output, self.labels_placeholder)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
 			self.summary_op = tf.merge_all_summaries()
-			init = tf.initialize_all_variables()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			init = tf.compat.v1.initialize_all_variables()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			try: # I think this may be broken
 				metafiles = [x for x in os.listdir(self.train_dir) if (x.count('meta')>0)]
 				if (len(metafiles)>0):
 					most_recent_meta_file=metafiles[0]
 					LOGGER.info("Restoring training from Metafile: "+most_recent_meta_file)
 					#Set config to allow soft device placement for temporary fix to known issue with Tensorflow up to version 0.12 atleast - JEH
-					config = tf.ConfigProto(allow_soft_placement=True)
-					self.sess = tf.Session(config=config)
-					self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+					config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+					self.sess = tf.compat.v1.Session(config=config)
+					self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 					self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 			except Exception as Ex:
 				print("Restore Failed",Ex)
@@ -340,9 +340,9 @@ class MolInstance_fc_sqdiff(MolInstance):
 				self.embeds_placeholder, self.labels_placeholder = self.placeholder_inputs(Ncase)
 				self.output = self.inference(self.embeds_placeholder, self.hidden1, self.hidden2, self.hidden3)
 				print ("type of self.embeds_placeholder:", type(self.embeds_placeholder))
-				self.gradient = tf.gradients(self.output, self.embeds_placeholder)[0]
-				self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-				self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+				self.gradient = tf.gradients(ys=self.output, xs=self.embeds_placeholder)[0]
+				self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+				self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 				self.saver.restore(self.sess, self.chk_file)
 		self.PreparedFor = Ncase
 		return
@@ -370,15 +370,15 @@ class MolInstance_fc_sqdiff(MolInstance):
 		# Note that the shapes of the placeholders match the shapes of the full
 		# image and label tensors, except the first dimension is now batch_size
 		# rather than the full size of the train or test data sets.
-		inputs_pl = tf.placeholder(self.tf_prec, shape=(batch_size,self.inshape)) # JAP : Careful about the shapes... should be flat for now.
-		outputs_pl = tf.placeholder(self.tf_prec, shape=(batch_size, self.outshape))
+		inputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=(batch_size,self.inshape)) # JAP : Careful about the shapes... should be flat for now.
+		outputs_pl = tf.compat.v1.placeholder(self.tf_prec, shape=(batch_size, self.outshape))
 		return inputs_pl, outputs_pl
 
 	def loss_op(self, output, labels):
 		diff  = tf.subtract(output, labels)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def test(self, step):
 		Ncase_test = self.TData.NTest
@@ -404,18 +404,18 @@ class MolInstance_fc_sqdiff(MolInstance):
 			self.total_loss, self.loss = self.loss_op(self.output, self.labels_placeholder)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
 			self.summary_op = tf.merge_all_summaries()
-			init = tf.initialize_all_variables()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			init = tf.compat.v1.initialize_all_variables()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			try: # I think this may be broken
 				metafiles = [x for x in os.listdir(self.train_dir) if (x.count('meta')>0)]
 				if (len(metafiles)>0):
 					most_recent_meta_file=metafiles[0]
 					LOGGER.info("Restoring training from Metafile: "+most_recent_meta_file)
 					#Set config to allow soft device placement for temporary fix to known issue with Tensorflow up to version 0.12 atleast - JEH
-					config = tf.ConfigProto(allow_soft_placement=True)
-					self.sess = tf.Session(config=config)
-					self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+					config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+					self.sess = tf.compat.v1.Session(config=config)
+					self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 					self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 			except Exception as Ex:
 				print("Restore Failed",Ex)
@@ -512,31 +512,31 @@ class MolInstance_fc_sqdiff_BP(MolInstance_fc_sqdiff):
 			self.inp_pl=[]
 			self.mats_pl=[]
 			for e in range(len(self.eles)):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.mats_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.batch_size_output])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.mats_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.batch_size_output])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
 			self.output, self.atom_outputs = self.inference(self.inp_pl, self.mats_pl)
-			self.check = tf.add_check_numerics_ops()
+			self.check = tf.compat.v1.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			try: # I think this may be broken
 				metafiles = [x for x in os.listdir(self.train_dir) if (x.count('meta')>0)]
 				if (len(metafiles)>0):
 					most_recent_meta_file=metafiles[0]
 					LOGGER.info("Restoring training from Metafile: "+most_recent_meta_file)
 					#Set config to allow soft device placement for temporary fix to known issue with Tensorflow up to version 0.12 atleast - JEH
-					config = tf.ConfigProto(allow_soft_placement=True)
-					self.sess = tf.Session(config=config)
-					self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+					config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+					self.sess = tf.compat.v1.Session(config=config)
+					self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 					self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 			except Exception as Ex:
 				print("Restore Failed",Ex)
 				pass
-			self.summary_writer = tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			self.sess.run(init)
 		return
 
@@ -545,8 +545,8 @@ class MolInstance_fc_sqdiff_BP(MolInstance_fc_sqdiff):
 		#tf.Print(diff, [diff], message="This is diff: ",first_n=10000000,summarize=100000000)
 		#tf.Print(labels, [labels], message="This is labels: ",first_n=10000000,summarize=100000000)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def inference(self, inp_pl, mats_pl):
 		"""
@@ -579,39 +579,39 @@ class MolInstance_fc_sqdiff_BP(MolInstance_fc_sqdiff):
 			branches.append([])
 			inputs = inp_pl[e]
 			mats = mats_pl[e]
-			shp_in = tf.shape(inputs)
+			shp_in = tf.shape(input=inputs)
 			if (PARAMS["CheckLevel"]>2):
-				tf.Print(tf.to_float(shp_in), [tf.to_float(shp_in)], message="Element "+str(e)+"input shape ",first_n=10000000,summarize=100000000)
-				mats_shape = tf.shape(mats)
-				tf.Print(tf.to_float(mats_shape), [tf.to_float(mats_shape)], message="Element "+str(e)+"mats shape ",first_n=10000000,summarize=100000000)
+				tf.compat.v1.Print(tf.cast(shp_in, dtype=tf.float32), [tf.cast(shp_in, dtype=tf.float32)], message="Element "+str(e)+"input shape ",first_n=10000000,summarize=100000000)
+				mats_shape = tf.shape(input=mats)
+				tf.compat.v1.Print(tf.cast(mats_shape, dtype=tf.float32), [tf.cast(mats_shape, dtype=tf.float32)], message="Element "+str(e)+"mats shape ",first_n=10000000,summarize=100000000)
 			if (PARAMS["CheckLevel"]>3):
-				tf.Print(tf.to_float(inputs), [tf.to_float(inputs)], message="This is input shape ",first_n=10000000,summarize=100000000)
-			with tf.name_scope(str(self.eles[e])+'_hidden_1'):
+				tf.compat.v1.Print(tf.cast(inputs, dtype=tf.float32), [tf.cast(inputs, dtype=tf.float32)], message="This is input shape ",first_n=10000000,summarize=100000000)
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_1'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, hidden1_units], var_stddev=nrm1, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden1_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(inputs, weights) + biases))
-			with tf.name_scope(str(self.eles[e])+'_hidden_2'):
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_2'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden1_units, hidden2_units], var_stddev=nrm2, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden2_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
-			with tf.name_scope(str(self.eles[e])+'_hidden_3'):
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_3'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden2_units, hidden3_units], var_stddev=nrm3, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden3_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
 				#tf.Print(branches[-1], [branches[-1]], message="This is layer 2: ",first_n=10000000,summarize=100000000)
-			with tf.name_scope(str(self.eles[e])+'_regression_linear'):
-				shp = tf.shape(inputs)
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_regression_linear'):
+				shp = tf.shape(input=inputs)
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden3_units, 1], var_stddev=nrm4, var_wd=None)
 				biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
 				branches[-1].append(tf.matmul(branches[-1][-1], weights) + biases)
-				shp_out = tf.shape(branches[-1][-1])
+				shp_out = tf.shape(input=branches[-1][-1])
 				cut = tf.slice(branches[-1][-1],[0,0],[shp_out[0],1])
 				#tf.Print(tf.to_float(shp_out), [tf.to_float(shp_out)], message="This is outshape: ",first_n=10000000,summarize=100000000)
 				rshp = tf.reshape(cut,[1,shp_out[0]])
 				atom_outputs.append(rshp)
 				tmp = tf.matmul(rshp,mats)
 				output = tf.add(output,tmp)
-		tf.verify_tensor_all_finite(output,"Nan in output!!!")
+		tf.compat.v1.verify_tensor_all_finite(output,"Nan in output!!!")
 		#tf.Print(output, [output], message="This is output: ",first_n=10000000,summarize=100000000)
 		return output, atom_outputs
 
@@ -794,19 +794,19 @@ class MolInstance_fc_sqdiff_BP(MolInstance_fc_sqdiff):
 			self.inp_pl=[]
 			self.mats_pl=[]
 			for e in range(len(self.eles)):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.mats_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None, self.batch_size_output])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.mats_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None, self.batch_size_output])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
 			self.output, self.atom_outputs = self.inference(self.inp_pl, self.mats_pl)
 			#self.gradient = tf.gradients(self.atom_outputs, self.inp_pl)
-			self.gradient = tf.gradients(self.output, self.inp_pl)
-			self.check = tf.add_check_numerics_ops()
+			self.gradient = tf.gradients(ys=self.output, xs=self.inp_pl)
+			self.check = tf.compat.v1.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.saver.restore(self.sess, self.chk_file)
 		return
 
@@ -819,17 +819,17 @@ class MolInstance_fc_sqdiff_BP(MolInstance_fc_sqdiff):
 			self.inp_pl=[]
 			self.mats_pl=[]
 			for e in range(len(self.eles)):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.mats_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.batch_size_output])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.mats_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.batch_size_output])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
 			self.output, self.atom_outputs = self.inference(self.inp_pl, self.mats_pl)
-			self.check = tf.add_check_numerics_ops()
+			self.check = tf.compat.v1.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.saver.restore(self.sess, self.chk_file)
 		return
 
@@ -906,34 +906,34 @@ class MolInstance_fc_sqdiff_BP_WithGrad(MolInstance_fc_sqdiff_BP):
 			self.grad_pl=[]
 			self.mats_pl=[]
 			for e in range(self.n_eles):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.grad_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape,self.MaxN3])))
-				self.mats_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.batch_size_output])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output,self.MaxN3+1]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.grad_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape,self.MaxN3])))
+				self.mats_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.batch_size_output])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output,self.MaxN3+1]))
 			self.output, self.atom_outputs, self.grads = self.inference()
 			#self.check = tf.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.grads, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
 			#self.summary_op = tf.summary.merge_all()
 			#init = tf.global_variables_initializer()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
 			try: # I think this may be broken
 				metafiles = [x for x in os.listdir(self.train_dir) if (x.count('meta')>0)]
 				if (len(metafiles)>0):
 					most_recent_meta_file=metafiles[0]
 					LOGGER.info("Restoring training from Metafile: "+most_recent_meta_file)
 					#Set config to allow soft device placement for temporary fix to known issue with Tensorflow up to version 0.12 atleast - JEH
-					config = tf.ConfigProto(allow_soft_placement=True)
-					self.sess = tf.Session(config=config)
-					self.saver = tf.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
+					config = tf.compat.v1.ConfigProto(allow_soft_placement=True)
+					self.sess = tf.compat.v1.Session(config=config)
+					self.saver = tf.compat.v1.train.import_meta_graph(self.train_dir+'/'+most_recent_meta_file)
 					self.saver.restore(self.sess, tf.train.latest_checkpoint(self.train_dir))
 			except Exception as Ex:
 				print("Restore Failed",Ex)
 				pass
-			self.summary_writer = tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			self.sess.run(init)
 		return
 
@@ -957,30 +957,30 @@ class MolInstance_fc_sqdiff_BP_WithGrad(MolInstance_fc_sqdiff_BP):
 			branches.append([])
 			inputs = self.inp_pl[e]
 			mats = self.mats_pl[e]
-			shp_in = tf.shape(inputs)
-			with tf.name_scope(str(self.eles[e])+'_hidden_1'):
+			shp_in = tf.shape(input=inputs)
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_1'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, hidden1_units], var_stddev=nrm1, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden1_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(inputs, weights) + biases))
-			with tf.name_scope(str(self.eles[e])+'_hidden_2'):
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_2'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden1_units, hidden2_units], var_stddev=nrm2, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden2_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
-			with tf.name_scope(str(self.eles[e])+'_hidden_3'):
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_3'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden2_units, hidden3_units], var_stddev=nrm3, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden3_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
 				#tf.Print(branches[-1], [branches[-1]], message="This is layer 2: ",first_n=10000000,summarize=100000000)
-			with tf.name_scope(str(self.eles[e])+'_regression_linear'):
-				shp = tf.shape(inputs)
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_regression_linear'):
+				shp = tf.shape(input=inputs)
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden3_units, 1], var_stddev=nrm4, var_wd=None)
 				biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
 				branches[-1].append(tf.matmul(branches[-1][-1], weights) + biases)
-				shp_out = tf.shape(branches[-1][-1])
+				shp_out = tf.shape(input=branches[-1][-1])
 				cut = tf.slice(branches[-1][-1],[0,0],[shp_out[0],1])
 				#tf.Print(tf.to_float(shp_out), [tf.to_float(shp_out)], message="This is outshape: ",first_n=10000000,summarize=100000000)
 				rshp = tf.reshape(cut,[1,shp_out[0]])
-				drshp = tf.gradients(rshp,inputs)
+				drshp = tf.gradients(ys=rshp,xs=inputs)
 				atom_outputs.append(rshp)
 				tmp = tf.matmul(rshp,mats)
 				output = tf.add(output,tmp)
@@ -992,9 +992,9 @@ class MolInstance_fc_sqdiff_BP_WithGrad(MolInstance_fc_sqdiff_BP):
 				#dAtomdRy = tf.Print(dAtomdRy, [tf.to_float(tf.shape(dAtomdRy))], message="Element "+str(e)+"dAtomdRy shape ",first_n=10000000,summarize=100000000)
 				dMoldRy = tf.tensordot(dAtomdRy,mats,axes=[[0],[0]]) #  => Grad X Mols
 				#dMoldRy = tf.Print(dMoldRy, [tf.to_float(tf.shape(tmp))], message="Element "+str(e)+"dE_atom/dRy ",first_n=10000000,summarize=100000000)
-				dtmp = tf.transpose(dMoldRy) # we want to sum over atoms and end up with (mol X cart)
+				dtmp = tf.transpose(a=dMoldRy) # we want to sum over atoms and end up with (mol X cart)
 				grads = tf.add(grads,dtmp) # Sum over element types.
-		tf.verify_tensor_all_finite(output,"Nan in output!!!")
+		tf.compat.v1.verify_tensor_all_finite(output,"Nan in output!!!")
 		#tf.Print(output, [output], message="This is output: ",first_n=10000000,summarize=100000000)
 		return output, atom_outputs, grads
 
@@ -1016,8 +1016,8 @@ class MolInstance_fc_sqdiff_BP_WithGrad(MolInstance_fc_sqdiff_BP):
 		Eloss = tf.nn.l2_loss(Ediff)
 		Gloss = tf.scalar_mul(self.GradWeight,tf.nn.l2_loss(Gdiff))
 		loss = tf.add(Eloss,Gloss)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def train_step(self, step):
 		Ncase_train = self.TData.NTrain
@@ -1133,18 +1133,18 @@ class MolInstance_fc_sqdiff_BP_Update(MolInstance_fc_sqdiff_BP):
 			self.inp_pl=[]
 			self.index_pl=[]
 			for e in range(len(self.eles)):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.index_pl.append(tf.placeholder(tf.int64, shape=tuple([None])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.index_pl.append(tf.compat.v1.placeholder(tf.int64, shape=tuple([None])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
 			self.output, self.atom_outputs = self.inference(self.inp_pl, self.index_pl)
-			self.check = tf.add_check_numerics_ops()
+			self.check = tf.compat.v1.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.summary_writer = tf.summary.FileWriter(self.train_dir, self.sess.graph)
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.summary_writer = tf.compat.v1.summary.FileWriter(self.train_dir, self.sess.graph)
 			self.sess.run(init)
 		return
 
@@ -1153,8 +1153,8 @@ class MolInstance_fc_sqdiff_BP_Update(MolInstance_fc_sqdiff_BP):
 		#tf.Print(diff, [diff], message="This is diff: ",first_n=10000000,summarize=100000000)
 		#tf.Print(labels, [labels], message="This is labels: ",first_n=10000000,summarize=100000000)
 		loss = tf.nn.l2_loss(diff)
-		tf.add_to_collection('losses', loss)
-		return tf.add_n(tf.get_collection('losses'), name='total_loss'), loss
+		tf.compat.v1.add_to_collection('losses', loss)
+		return tf.add_n(tf.compat.v1.get_collection('losses'), name='total_loss'), loss
 
 	def inference(self, inp_pl, index_pl):
 		"""
@@ -1182,33 +1182,33 @@ class MolInstance_fc_sqdiff_BP_Update(MolInstance_fc_sqdiff_BP):
 		for e in range(len(self.eles)):
 			branches.append([])
 			inputs = inp_pl[e]
-			shp_in = tf.shape(inputs)
+			shp_in = tf.shape(input=inputs)
 			index = index_pl[e]
 			if (PARAMS["CheckLevel"]>2):
-				tf.Print(tf.to_float(shp_in), [tf.to_float(shp_in)], message="Element "+str(e)+"input shape ",first_n=10000000,summarize=100000000)
-				index_shape = tf.shape(index)
-				tf.Print(tf.to_float(index_shape), [tf.to_float(index_shape)], message="Element "+str(e)+"index shape ",first_n=10000000,summarize=100000000)
+				tf.compat.v1.Print(tf.cast(shp_in, dtype=tf.float32), [tf.cast(shp_in, dtype=tf.float32)], message="Element "+str(e)+"input shape ",first_n=10000000,summarize=100000000)
+				index_shape = tf.shape(input=index)
+				tf.compat.v1.Print(tf.cast(index_shape, dtype=tf.float32), [tf.cast(index_shape, dtype=tf.float32)], message="Element "+str(e)+"index shape ",first_n=10000000,summarize=100000000)
 			if (PARAMS["CheckLevel"]>3):
-				tf.Print(tf.to_float(inputs), [tf.to_float(inputs)], message="This is input shape ",first_n=10000000,summarize=100000000)
-			with tf.name_scope(str(self.eles[e])+'_hidden_1'):
+				tf.compat.v1.Print(tf.cast(inputs, dtype=tf.float32), [tf.cast(inputs, dtype=tf.float32)], message="This is input shape ",first_n=10000000,summarize=100000000)
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_1'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[self.inshape, hidden1_units], var_stddev=nrm1, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden1_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(inputs, weights) + biases))
-			with tf.name_scope(str(self.eles[e])+'_hidden_2'):
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_2'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden1_units, hidden2_units], var_stddev=nrm2, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden2_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
-			with tf.name_scope(str(self.eles[e])+'_hidden_3'):
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_hidden_3'):
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden2_units, hidden3_units], var_stddev=nrm3, var_wd=0.001)
 				biases = tf.Variable(tf.zeros([hidden3_units], dtype=self.tf_prec), name='biases')
 				branches[-1].append(self.activation_function(tf.matmul(branches[-1][-1], weights) + biases))
 				#tf.Print(branches[-1], [branches[-1]], message="This is layer 2: ",first_n=10000000,summarize=100000000)
-			with tf.name_scope(str(self.eles[e])+'_regression_linear'):
-				shp = tf.shape(inputs)
+			with tf.compat.v1.name_scope(str(self.eles[e])+'_regression_linear'):
+				shp = tf.shape(input=inputs)
 				weights = self._variable_with_weight_decay(var_name='weights', var_shape=[hidden3_units, 1], var_stddev=nrm4, var_wd=None)
 				biases = tf.Variable(tf.zeros([1], dtype=self.tf_prec), name='biases')
 				branches[-1].append(tf.matmul(branches[-1][-1], weights) + biases)
-				shp_out = tf.shape(branches[-1][-1])
+				shp_out = tf.shape(input=branches[-1][-1])
 				cut = tf.slice(branches[-1][-1],[0,0],[shp_out[0],1])
 				#tf.Print(tf.to_float(shp_out), [tf.to_float(shp_out)], message="This is outshape: ",first_n=10000000,summarize=100000000)
 				rshp = tf.reshape(cut,[1,shp_out[0]])
@@ -1217,9 +1217,9 @@ class MolInstance_fc_sqdiff_BP_Update(MolInstance_fc_sqdiff_BP):
 				range_index = tf.range(tf.cast(shp_out[0], tf.int64), dtype=tf.int64)
 				sparse_index =tf.stack([index, range_index], axis=1)
 				sp_atomoutputs = tf.SparseTensor(sparse_index, rshpflat, dense_shape=[tf.cast(self.batch_size_output, tf.int64), tf.cast(shp_out[0], tf.int64)])
-				mol_tmp = tf.sparse_reduce_sum(sp_atomoutputs, axis=1)
+				mol_tmp = tf.sparse.reduce_sum(sp_atomoutputs, axis=1)
 				output = tf.add(output, mol_tmp)
-		tf.verify_tensor_all_finite(output,"Nan in output!!!")
+		tf.compat.v1.verify_tensor_all_finite(output,"Nan in output!!!")
 		#tf.Print(output, [output], message="This is output: ",first_n=10000000,summarize=100000000)
 		return output, atom_outputs
 
@@ -1403,19 +1403,19 @@ class MolInstance_fc_sqdiff_BP_Update(MolInstance_fc_sqdiff_BP):
 			self.inp_pl=[]
 			self.index_pl=[]
 			for e in range(len(self.eles)):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.index_pl.append(tf.placeholder(tf.int64, shape=tuple([None])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.index_pl.append(tf.compat.v1.placeholder(tf.int64, shape=tuple([None])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
 			self.output, self.atom_outputs = self.inference(self.inp_pl, self.index_pl)
 			#self.gradient = tf.gradients(self.atom_outputs, self.inp_pl)
-			self.gradient = tf.gradients(self.output, self.inp_pl)
-			self.check = tf.add_check_numerics_ops()
+			self.gradient = tf.gradients(ys=self.output, xs=self.inp_pl)
+			self.check = tf.compat.v1.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.saver.restore(self.sess, self.chk_file)
 		return
 
@@ -1428,16 +1428,16 @@ class MolInstance_fc_sqdiff_BP_Update(MolInstance_fc_sqdiff_BP):
 			self.inp_pl=[]
 			self.index_pl=[]
 			for e in range(len(self.eles)):
-				self.inp_pl.append(tf.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
-				self.index_pl.append(tf.placeholder(tf.int64, shape=tuple([None])))
-			self.label_pl = tf.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
+				self.inp_pl.append(tf.compat.v1.placeholder(self.tf_prec, shape=tuple([None,self.inshape])))
+				self.index_pl.append(tf.compat.v1.placeholder(tf.int64, shape=tuple([None])))
+			self.label_pl = tf.compat.v1.placeholder(self.tf_prec, shape=tuple([self.batch_size_output]))
 			self.output, self.atom_outputs = self.inference(self.inp_pl, self.index_pl)
-			self.check = tf.add_check_numerics_ops()
+			self.check = tf.compat.v1.add_check_numerics_ops()
 			self.total_loss, self.loss = self.loss_op(self.output, self.label_pl)
 			self.train_op = self.training(self.total_loss, self.learning_rate, self.momentum)
-			self.summary_op = tf.summary.merge_all()
-			init = tf.global_variables_initializer()
-			self.saver = tf.train.Saver(max_to_keep = self.max_checkpoints)
-			self.sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
+			self.summary_op = tf.compat.v1.summary.merge_all()
+			init = tf.compat.v1.global_variables_initializer()
+			self.saver = tf.compat.v1.train.Saver(max_to_keep = self.max_checkpoints)
+			self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(allow_soft_placement=True))
 			self.saver.restore(self.sess, self.chk_file)
 		return
